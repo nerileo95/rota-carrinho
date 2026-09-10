@@ -20,7 +20,10 @@ const Motor = (() => {
             permitirEscada: false,
             multPiso: 1.314, multSemCalcada: 1.114,
             mSemaforo: 0.568, mFaixa: 0.904, barreiraM: 1.941,
-            qA: 0.666, qB: 1.533 };
+            qA: 0.666, qB: 1.533,
+            // largura que o carrinho da pessoa precisa; abaixo disso o lado
+            // da calçada some do grafo, não fica caro
+            bloqueio: K.FAIXA_BLOQUEIO_M };
     // os conjuntos nascem aqui, e não em cada página que usa o motor: eram três
     // cópias da mesma linha, e a quarta ia esquecer
     for(const [campo, chave] of [["_rampa","rampa"], ["_guiaAlta","guia_alta"],
@@ -51,7 +54,7 @@ const Motor = (() => {
     const t = s>>2;
     if(D._escadas.has(t) && !cal.permitirEscada) return true;
     const livre = D.arestas[t][3 + (s&1)];
-    return livre !== null && livre < K.FAIXA_BLOQUEIO_M;
+    return livre !== null && livre < cal.bloqueio;
   }
 
   /* Os limiares vêm da norma; os multiplicadores são escolha de projeto. */
@@ -68,8 +71,15 @@ const Motor = (() => {
     return p;
   }
 
-  /* As três preferências de passeio, iguais às do motor.py. */
-  const PREFERENCIAS = {passeio: {}, sombra: {sombra: 0.55}, parque: {parque: 0.45}};
+  /* As oito combinações de bandeira, vindas prontas do Python (`D.misturas`).
+   * Elas se COMBINAM: quem marca sombra e praça recebe as duas, com a soma
+   * limitada — senão marcar tudo viraria "qualquer coisa menos calçada boa". */
+  const IDX_COMPONENTE = {sombra: 8, parque: 9, turismo: 12};
+  const preferencias = () => D.misturas || {passeio: {}};
+  const nomeDoModo = bandeiras => {
+    const ativos = ["sombra", "parque", "turismo"].filter(b => bandeiras && bandeiras[b]);
+    return ativos.length ? ativos.join("+") : "passeio";
+  };
 
   function custoTrecho(s, modo){
     const t = s>>2, a = D.arestas[t], livre = a[3 + (s&1)];
@@ -78,13 +88,13 @@ const Motor = (() => {
     if(modo === 'base')    return a[2] * mult;
     // sobre o custo com a penalidade da norma dentro, não sobre os metros
     // crus: senão o passeio compra sombra com calçada estreita
-    const p = PREFERENCIAS[modo];
+    const p = preferencias()[modo];
     if(p) {
       // A base continua sendo a nota inteira: "mais sombra" não é "só sombra",
       // senão a rota vira um túnel de árvores por calçada ruim.
-      const extra = p.sombra || p.parque || 0;
-      const comp = p.sombra ? a[8] : p.parque ? a[9] : 0;
-      const n = (1 - extra) * a[6] + extra * (comp || 0);
+      let extra = 0, soma = 0;
+      for(const k in p){ extra += p[k]; soma += p[k] * (a[IDX_COMPONENTE[k]] || 0); }
+      const n = (1 - extra) * a[6] + soma;
       return a[2] * penalidade(livre, a[5], a[11]|0) / (cal.qA + cal.qB*n) * mult;
     }
     return a[2] * penalidade(livre, a[5], a[11]|0) * mult;      // 'cost'
@@ -296,14 +306,14 @@ const Motor = (() => {
       /* A qualidade que escolhe o ponto de retorno é a da PREFERÊNCIA pedida.
        * Zerá-la fora do modo 'passeio' desligava o critério em vez de mudá-lo,
        * e a volta "com sombra" vinha com MENOS sombra que a comum. */
-      const pref = PREFERENCIAS[modo];
-      const extra = pref ? (pref.sombra || pref.parque || 0) : 0;
-      const iCom = pref && pref.sombra ? 8 : 9;
+      const pref = preferencias()[modo];
       let notaSoma=0, qSoma=0, andados=0; const distintos=new Set();
       for(let i=0;i<caminho.length-1;i++) if(andou(caminho[i],caminho[i+1])){
         const t=caminho[i]>>2, a=D.arestas[t], m=a[2];
         notaSoma += a[6]*m; andados++; distintos.add(t);
-        qSoma += ((1-extra)*a[6] + extra*(a[iCom]||0)) * m; }
+        let extra=0, soma=0;
+        if(pref) for(const k in pref){ extra += pref[k]; soma += pref[k]*(a[IDX_COMPONENTE[k]]||0); }
+        qSoma += ((1-extra)*a[6] + soma) * m; }
       const nota = notaSoma / res.distancia_m;
       const q = pref ? qSoma / res.distancia_m : 0;
       const repetido = andados ? 1 - distintos.size/andados : 1;
@@ -503,7 +513,7 @@ const Motor = (() => {
   const calibrar = o => Object.assign(cal, o);
 
   return {iniciar, rotear, rotaCircular, resumir, instrucoes, definirReports, calibrar,
-          escolherRota, temEscada, custoPasso, INDICADORES, CALIBRAGENS, FOLGA_MIN,
+          escolherRota, temEscada, custoPasso, nomeDoModo, INDICADORES, CALIBRAGENS, FOLGA_MIN,
           estadosDoNo, andou, setorDe, noDoEstado, custoTrecho, TIPOS_REPORT,
           get dados(){ return D; }, get calibracao(){ return cal; }};
 })();
