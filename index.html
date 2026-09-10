@@ -21,7 +21,20 @@
   --copa:#2E7D5B;      /* nossa rota */
   --asfalto:#79848F;   /* a rota comum */
   --fora:#B4402B;      /* abaixo de 1,20 m */
-  /* o mapa é monocromático de propósito: a única cor da tela é a rota */
+  /* O MAPA TEM PALETA PRÓPRIA, e ela não segue o tema da página: é sempre
+     noturna, como a do Waze. O fundo azul-petróleo escuro é o que faz as duas
+     rotas saltarem — no cinza claro a rota mais curta sumia no próprio fundo.
+     Estes tokens ficam fora dos blocos de tema de propósito. */
+  --mapa-chao:#1B2430;
+  --mapa-predio:#232E3D; --mapa-predio-borda:#2B3849;
+  /* a praça é mais clara que o quarteirão, não é verde: monocromático de
+     verdade quer dizer separação por TOM, não por matiz */
+  --mapa-verde:#26333F; --mapa-verde-borda:#33424F;
+  --mapa-agua:#141C26;
+  --mapa-via:#3A485E; --mapa-tinta:#8A99B4;
+  --mapa-curta:#C3D0E6;     /* a rota mais curta: neutra e clara */
+  --mapa-nossa:#35E08F;     /* a nossa: a única cor viva da tela */
+  --mapa-alerta:#FF6B5A;    /* abaixo de 1,20 m, e travessia sem rampa */
   --praca:#E9E8E1; --praca-borda:#D2D0C7;
   --predio:#DFDDD6; --predio-borda:#CBC8BF; --agua:#CFCEC7; --quadra:#F1F0EB;
   --sombra:0 1px 2px rgba(21,23,26,.06), 0 14px 34px -22px rgba(21,23,26,.34);
@@ -133,15 +146,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .leaflet-bar a:hover{background:var(--guia2)}
 .leaflet-tooltip{background:var(--painel); color:var(--tinta); border:1px solid var(--guia);
   box-shadow:var(--sombra); font-size:12px}
-/* Monocromático de propósito: o tile do OSM pinta parque de verde, via de
-   amarelo e água de azul, e a rota some no meio disso. Sem cor no fundo, a
-   única linha colorida da tela é o caminho. No escuro ele ainda é invertido,
-   senão seria uma placa branca no meio da página. */
-.leaflet-tile-pane{filter:grayscale(1) contrast(.92) brightness(1.04)}
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .leaflet-tile-pane{
-  filter:grayscale(1) invert(1) brightness(.95) contrast(.82)} }
-:root[data-theme="dark"] .leaflet-tile-pane{
-  filter:grayscale(1) invert(1) brightness(.95) contrast(.82)}
+/* O tile do OSM pinta parque de verde, via de amarelo e água de azul, e no meio
+   disso as duas rotas somem. A cadeia abaixo o transforma no mapa noturno: tira
+   a cor, inverte para escurecer, e reintroduz UMA cor só — o azul-petróleo —
+   por sepia mais rotação de matiz. O mapa não segue o tema da página: é sempre
+   noturno, porque é o fundo que faz a rota saltar. */
+.leaflet-container{background:var(--mapa-chao)}
+.leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.62) contrast(1.22)
+  sepia(1) hue-rotate(186deg) saturate(1.55) brightness(1.02)}
 .legenda-mapa{display:flex; gap:15px; flex-wrap:wrap; padding:11px 15px;
   border-top:1px solid var(--guia2); font-size:12px; color:var(--tinta2)}
 .legenda-mapa i{display:inline-block; width:15px; height:3px; border-radius:2px;
@@ -312,14 +324,14 @@ footer b{color:var(--tinta2)}
   <div class="quadro">
     <div id="mapa"></div>
     <div class="legenda-mapa">
-      <span><i style="background:var(--asfalto)"></i>a rota mais curta</span>
-      <span><i style="background:var(--copa)"></i>a que o app sugere</span>
-      <span><i style="background:var(--fora)"></i>trecho abaixo de 1,20 m</span>
+      <span><i style="background:var(--mapa-curta)"></i>a rota mais curta</span>
+      <span><i style="background:var(--mapa-nossa)"></i>a que o app sugere</span>
+      <span><i style="background:var(--mapa-alerta)"></i>trecho abaixo de 1,20 m</span>
       <span><i style="background:var(--tinta3);height:2px"></i>os últimos metros até o cruzamento</span>
-      <span><i style="background:var(--praca);height:9px;border-radius:3px"></i>praça ou parque</span>
-      <span><i style="background:var(--guia);height:2px"></i>ruas do bairro</span>
-      <span><i style="background:var(--predio);height:9px;border-radius:2px"></i>prédio</span>
-      <span><i style="background:var(--painel);height:9px;width:9px;border-radius:50%;border:1px solid var(--tinta3)"></i>ponto turístico</span>
+      <span><i style="background:var(--mapa-verde);height:9px;border-radius:3px;border:1px solid var(--mapa-verde-borda)"></i>praça ou parque</span>
+      <span><i style="background:var(--mapa-via);height:2px"></i>ruas do bairro</span>
+      <span><i style="background:var(--mapa-predio);height:9px;border-radius:2px"></i>prédio</span>
+      <span><i style="background:var(--mapa-chao);height:9px;width:9px;border-radius:50%;border:1px solid var(--mapa-tinta)"></i>ponto turístico</span>
     </div>
   </div>
   <div class="veredito">
@@ -618,25 +630,26 @@ function desenharNoMapa(comum, nossa, pontos) {
   const cabe = p => caixa.push([p[1], p[0]]);
 
   for (const pq of (D.parques || []))
-    L.polygon(paraLatLng(pq.g), {color: cor("--praca-borda"), weight: 1, fillColor: cor("--praca"),
+    L.polygon(paraLatLng(pq.g), {color: cor("--mapa-verde-borda"), weight: 1,
+      fillColor: cor("--mapa-verde"),
       fillOpacity: .5, interactive: !!pq.nome})
       .bindTooltip(pq.nome || "praça").addTo(pintado);
 
   for (const pt of (D.turismo || []))
-    L.circleMarker([pt.g[1], pt.g[0]], {radius: 3.4, color: cor("--tinta3"), weight: 1.2,
-      fillColor: cor("--painel"), fillOpacity: 1})
+    L.circleMarker([pt.g[1], pt.g[0]], {radius: 3.4, color: cor("--mapa-tinta"), weight: 1.2,
+      fillColor: cor("--mapa-chao"), fillOpacity: 1})
       .bindTooltip(`${pt.nome}<br><span style="color:var(--tinta3)">${pt.tipo}</span>`)
       .addTo(pintado);
 
   if (comum) for (const t of trechosDe(comum)) {
-    L.polyline(paraLatLng(D.geo[t.t]), {color: cor("--asfalto"), weight: 5, opacity: .55,
-      dashArray: "2 8", interactive: false}).addTo(pintado);
+    L.polyline(paraLatLng(D.geo[t.t]), {color: cor("--mapa-curta"), weight: 5, opacity: .95,
+      dashArray: "3 8", interactive: false}).addTo(pintado);
     for (const p of D.geo[t.t]) cabe(p);
   }
   if (nossa) for (const t of trechosDe(nossa)) {
     const a = D.arestas[t.t], livre = a[3 + t.lado];
     const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-    L.polyline(paraLatLng(D.geo[t.t]), {color: fora ? cor("--fora") : cor("--copa"), weight: 6.5})
+    L.polyline(paraLatLng(D.geo[t.t]), {color: fora ? cor("--mapa-alerta") : cor("--mapa-nossa"), weight: 6.5})
       .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
         + (livre === null ? "largura não cadastrada"
            : `faixa livre ${num(livre, 2)} m${fora ? " — abaixo de 1,20 m" : ""}`)
@@ -645,21 +658,21 @@ function desenharNoMapa(comum, nossa, pontos) {
   }
   if (nossa) for (const tv of travessiasDe(nossa)) {
     if (tv.rampa) continue;
-    L.circleMarker([D.nos[tv.no][1], D.nos[tv.no][0]], {radius: 5, color: cor("--painel"),
-      weight: 1.5, fillColor: cor("--fora"), fillOpacity: 1})
+    L.circleMarker([D.nos[tv.no][1], D.nos[tv.no][0]], {radius: 5, color: cor("--mapa-chao"),
+      weight: 1.5, fillColor: cor("--mapa-alerta"), fillOpacity: 1})
       .bindTooltip("travessia sem rebaixamento de guia mapeado").addTo(pintado);
   }
   for (const pt of pontos || []) {
     const [no, c, rot, endereco, recuo] = pt;
     const centro = [D.nos[no][1], D.nos[no][0]];
     if (endereco && recuo > 25) {
-      L.polyline([[endereco[1], endereco[0]], centro], {color: cor("--tinta3"), weight: 2,
+      L.polyline([[endereco[1], endereco[0]], centro], {color: cor("--mapa-tinta"), weight: 2,
         dashArray: "3 5", interactive: false}).addTo(pintado);
       L.circleMarker([endereco[1], endereco[0]], {radius: 5, color: c, weight: 2.5, fillOpacity: 0})
         .bindTooltip(`${rot} — o endereço, a ${recuo} m do cruzamento`).addTo(pintado);
       cabe(endereco);
     }
-    L.circleMarker(centro, {radius: 7, color: cor("--painel"), weight: 2.5, fillColor: c,
+    L.circleMarker(centro, {radius: 7, color: cor("--mapa-chao"), weight: 2.5, fillColor: c,
       fillOpacity: 1}).bindTooltip(rot).addTo(pintado);
     cabe(D.nos[no]);
   }
@@ -672,13 +685,13 @@ function desenhar(comum, nossa, pontos) {
   const caixa = encherOQuadro(caixaDe([comum, nossa].filter(Boolean), pontos), W, H, 16);
   const f = projetor(W, H, 16, caixa);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa comparando a rota mais curta e a que o app sugere">`;
-  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--quadra)"/>`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--mapa-chao)"/>`;
   let agua = "";
   for (const g of AGUA) if (naMoldura(g, caixa)) agua += `<path d="${linha(g, f)}Z"/>`;
-  if (agua) s += `<g fill="var(--agua)" stroke="var(--agua)" stroke-width="2">${agua}</g>`;
+  if (agua) s += `<g fill="var(--mapa-agua)" stroke="var(--mapa-agua)" stroke-width="2">${agua}</g>`;
   for (const pq of (D.parques || [])) {
     if (!naMoldura(pq.g, caixa)) continue;
-    s += `<path d="${linha(pq.g, f)}Z" fill="var(--praca)" stroke="var(--praca-borda)"
+    s += `<path d="${linha(pq.g, f)}Z" fill="var(--mapa-verde)" stroke="var(--mapa-verde-borda)"
            stroke-width="1"><title>${pq.nome || "praça"}</title></path>`;
   }
   /* Os 34.810 prédios inteiros desenham em torno de 300 ms, então a camada não
@@ -691,15 +704,15 @@ function desenhar(comum, nossa, pontos) {
     cabemPredios.push(g);
   }
   if (cabemPredios.length) {
-    s += `<g fill="var(--predio)" stroke="var(--predio-borda)" stroke-width=".5">`;
+    s += `<g fill="var(--mapa-predio)" stroke="var(--mapa-predio-borda)" stroke-width=".5">`;
     for (const g of cabemPredios) s += `<path d="${linha(g, f)}Z"/>`;
     s += `</g>`;
   }
   for (const pt of (D.turismo || [])) {
     if (pt.g[0] < caixa[0] || pt.g[0] > caixa[2] || pt.g[1] < caixa[1] || pt.g[1] > caixa[3]) continue;
     const [x, y] = f(pt.g[0], pt.g[1]);
-    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="var(--painel)"
-           stroke="var(--tinta3)" stroke-width="1.2"><title>${pt.nome}</title></circle>`;
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="var(--mapa-chao)"
+           stroke="var(--mapa-tinta)" stroke-width="1.2"><title>${pt.nome}</title></circle>`;
   }
   const porClasse = TRACO.map(() => "");
   for (let i = 0; i < D.geo.length; i++) {
@@ -707,11 +720,11 @@ function desenhar(comum, nossa, pontos) {
     porClasse[D.arestas[i][10] || 2] += `<path d="${linha(D.geo[i], f)}"/>`;
   }
   porClasse.forEach((d, c) => { if (d)
-    s += `<g stroke="var(--guia)" stroke-width="${TRACO[c]}" fill="none"
+    s += `<g stroke="var(--mapa-via)" stroke-width="${TRACO[c]}" fill="none"
            stroke-linecap="round">${d}</g>`; });
   if (comum) {
-    s += `<g fill="none" stroke="var(--asfalto)" stroke-width="6" stroke-linecap="round"
-           stroke-linejoin="round" opacity=".65" stroke-dasharray="2 7">`;
+    s += `<g fill="none" stroke="var(--mapa-curta)" stroke-width="5.5" stroke-linecap="round"
+           stroke-linejoin="round" opacity=".95" stroke-dasharray="3 8">`;
     for (const t of trechosDe(comum)) s += `<path d="${linha(D.geo[t.t], f)}"/>`;
     s += `</g>`;
   }
@@ -720,14 +733,14 @@ function desenhar(comum, nossa, pontos) {
     for (const t of trechosDe(nossa)) {
       const livre = D.arestas[t.t][3 + t.lado];
       const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-      s += `<path d="${linha(D.geo[t.t], f)}" stroke="${fora ? "var(--fora)" : "var(--copa)"}"/>`;
+      s += `<path d="${linha(D.geo[t.t], f)}" stroke="${fora ? "var(--mapa-alerta)" : "var(--mapa-nossa)"}"/>`;
     }
     s += `</g>`;
     for (const tv of travessiasDe(nossa)) {
       const [x, y] = f(D.nos[tv.no][0], D.nos[tv.no][1]);
       if (tv.rampa) continue;
-      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="var(--fora)"
-             stroke="var(--painel)" stroke-width="1.4"><title>travessia sem rebaixamento mapeado</title></circle>`;
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="var(--mapa-alerta)"
+             stroke="var(--mapa-chao)" stroke-width="1.4"><title>travessia sem rebaixamento mapeado</title></circle>`;
     }
   }
   for (const pt of pontos || []) {
@@ -737,12 +750,12 @@ function desenhar(comum, nossa, pontos) {
       // a porta e o trecho a pé até o cruzamento onde a rota começa
       const [ax, ay] = f(alvo[0], alvo[1]);
       s += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}"
-             stroke="var(--tinta3)" stroke-width="1.6" stroke-dasharray="3 4" fill="none"/>`;
+             stroke="var(--mapa-tinta)" stroke-width="1.6" stroke-dasharray="3 4" fill="none"/>`;
       s += `<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="4.5" fill="none"
              stroke="${cor}" stroke-width="2.4"><title>${rot} — o endereço</title></circle>`;
     }
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${cor}"
-           stroke="var(--painel)" stroke-width="2.4"><title>${rot}${
+           stroke="var(--mapa-chao)" stroke-width="2.4"><title>${rot}${
              recuo > 25 ? ` — a rota começa neste cruzamento, a ${recuo} m` : ""}</title></circle>`;
   }
   s += `</svg>`;
@@ -892,7 +905,7 @@ function tracar() {
     const min = +$("#minutos").value;
     const v = Motor.rotaCircular(o.no, min, {modo: prefAtual()});
     if (!v) return semRota();
-    desenhar(null, v.caminho, [[o.no, "var(--copa)", o.nome, o.alvo, o.recuo]]);
+    desenhar(null, v.caminho, [[o.no, "var(--mapa-nossa)", o.nome, o.alvo, o.recuo]]);
     $("#titulo-veredito").textContent = `Volta de ${min} minutos`;
     $("#onde-veredito").textContent =
       `saindo da ${o.nome} · entregue em ${Math.round(v.minutos)} min` + recuoEmPalavras(o);
@@ -904,8 +917,8 @@ function tracar() {
     const esc = Motor.escolherRota(o.no, d.no, prefAtual(), {folgaMin});
     if (!esc) return semRota();
     desenhar(esc.curta.caminho, esc.nossa.caminho,
-             [[o.no, "var(--copa)", o.nome, o.alvo, o.recuo],
-              [d.no, "var(--tinta)", d.nome, d.alvo, d.recuo]]);
+             [[o.no, "var(--mapa-nossa)", o.nome, o.alvo, o.recuo],
+              [d.no, "var(--mapa-curta)", d.nome, d.alvo, d.recuo]]);
     $("#titulo-veredito").textContent = `${o.nome} → ${d.nome}`;
     $("#onde-veredito").textContent = `${Math.round(esc.nossa.minutos)} min a pé com carrinho`
       + recuoEmPalavras(o) + recuoEmPalavras(d);
