@@ -76,6 +76,25 @@ const Motor = (() => {
    * limitada — senão marcar tudo viraria "qualquer coisa menos calçada boa". */
   const IDX_COMPONENTE = {sombra: 8, parque: 9, turismo: 12};
   const preferencias = () => D.misturas || {passeio: {}};
+
+  /* Média dos componentes ao longo do trajeto, ponderada por metro. Saber que
+   * sombra é a coluna 8 da aresta é conhecimento do motor, não da tela: as duas
+   * páginas pedem isto, e uma segunda cópia seria uma segunda chance de errar
+   * o índice. "toca" conta as quadras que encostam de fato numa praça. */
+  function mediasDe(caminho){
+    const soma = {sombra: 0, parque: 0, turismo: 0};
+    let dist = 0, toca = 0;
+    for(let i=0;i<caminho.length-1;i++){
+      if(!andou(caminho[i], caminho[i+1])) continue;
+      const a = D.arestas[caminho[i]>>2], m = a[2];
+      for(const k in IDX_COMPONENTE) soma[k] += (a[IDX_COMPONENTE[k]] || 0) * m;
+      dist += m;
+      if((a[IDX_COMPONENTE.parque] || 0) >= .999) toca++;
+    }
+    if(!dist) return {sombra: 0, parque: 0, turismo: 0, toca: 0};
+    for(const k in soma) soma[k] /= dist;
+    return Object.assign(soma, {toca});
+  }
   const nomeDoModo = bandeiras => {
     const ativos = ["sombra", "parque", "turismo"].filter(b => bandeiras && bandeiras[b]);
     return ativos.length ? ativos.join("+") : "passeio";
@@ -475,12 +494,20 @@ const Motor = (() => {
           if(vistas.has(chave)) continue;
           vistas.add(chave);
           const med = resumir(caminho);
-          if(med.minutos > teto) continue;         // fora do orçamento de tempo
-          candidatas.push(Object.assign({caminho, rotulo: c.rotulo, peso}, med,
+          /* Fora do orçamento de tempo. O app descarta e mostra só a vencedora;
+           * a página que explica a escolha pede para guardar, porque o ponto
+           * dela é justamente ver quem cai fora quando o teto se move. */
+          const foraDoTeto = med.minutos > teto;
+          if(foraDoTeto && !opts.manterForaDoTeto) continue;
+          candidatas.push(Object.assign({caminho, rotulo: c.rotulo, peso, foraDoTeto}, med,
                                         placar(med, curta)));
         }
       }
+      /* Quem estourou o teto nunca disputa: fica atrás de todo mundo, para que
+       * candidatas[0] continue sendo a mesma vencedora de quando elas eram
+       * simplesmente descartadas. */
       candidatas.sort((a, b) =>
+        (a.foraDoTeto ? 1 : 0) - (b.foraDoTeto ? 1 : 0) ||
         b.pontos - a.pontos || a.perde.length - b.perde.length ||
         b.nota - a.nota || a.minutos - b.minutos);
       const nossa = candidatas[0];
@@ -513,7 +540,8 @@ const Motor = (() => {
   const calibrar = o => Object.assign(cal, o);
 
   return {iniciar, rotear, rotaCircular, resumir, instrucoes, definirReports, calibrar,
-          escolherRota, temEscada, custoPasso, nomeDoModo, INDICADORES, CALIBRAGENS, FOLGA_MIN,
+          escolherRota, temEscada, custoPasso, nomeDoModo, mediasDe, preferencias,
+          INDICADORES, CALIBRAGENS, FOLGA_MIN,
           estadosDoNo, andou, setorDe, noDoEstado, custoTrecho, TIPOS_REPORT,
           get dados(){ return D; }, get calibracao(){ return cal; }};
 })();

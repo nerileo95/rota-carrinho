@@ -344,39 +344,16 @@ footer b{color:var(--tinta2)}
   <ol id="fala"></ol>
 </div>
 
-<section class="banco">
-  <div class="banco-cabeca">
-    <h2>Bateria de provas</h2>
-    <button class="rodar" id="rodar">rodar as 29 rotas</button>
-  </div>
-  <p>Quinze voltas circulares, cada origem pedida de três jeitos para ver a preferência mudar o
-  trajeto, e quatorze trajetos ponto a ponto que cruzam o recorte inteiro, a maioria saindo da
-  Rua Harmonia 942. Nos trajetos, cada linha mostra qual leitura venceu, quanto tempo a mais custou
-  e o placar contra a rota mais curta nos quatro indicadores; roda com o orçamento de tempo que
-  estiver no controle acima; vale rodar com +0 e com +5 min para ver o que o minuto extra compra.
-  Nas voltas não há placar, porque não há do que comparar: a última coluna mostra sombra e
-  proximidade de praça, que é o que a preferência muda.</p>
-  <div class="rolo">
-    <table class="provas">
-      <thead><tr>
-        <th>trajeto</th><th>leitura escolhida</th><th>metros</th><th>+ tempo</th>
-        <th>fora da norma</th><th>pior faixa livre</th><th>sem rampa</th><th>nota</th>
-        <th>placar</th>
-      </tr></thead>
-      <tbody id="provas"><tr><td colspan="9" class="vazio">Nenhuma prova rodada ainda.</td></tr></tbody>
-    </table>
-  </div>
-  <dl class="resumo-banco" id="resumo" hidden></dl>
-</section>
-
 <footer>
   <div class="notas">
   <p><b>Como ler.</b> "Fora da norma" é a fração do trajeto sobre calçada com faixa livre abaixo de
   1,20 m, já descontando 0,70 m onde há árvore ou poste plantado dentro dela. "Pior faixa livre" é o
   gargalo do trajeto, e é ele que decide se o carrinho passa. "Sem rampa" conta as travessias em
-  cruzamento sem rebaixamento de guia mapeado. A coluna "placar" diz em quantos dos quatro
-  indicadores a rota escolhida ganha da mais curta, e de quantos ela abriu mão para caber no
-  orçamento de tempo; empate não conta para nenhum dos dois lados.</p>
+  cruzamento sem rebaixamento de guia mapeado. Empate não conta para nenhum dos dois lados.</p>
+  <p><b>As rotas que você não vê.</b> Para cada trajeto o motor calcula uma dezena de rotas e
+  entrega uma. As descartadas, o placar de cada uma e a bateria de 29 provas ficam em
+  <a href="https://nerileo95.github.io/rota-carrinho/motor/">como o motor escolhe uma rota</a>,
+  uma página só para isso.</p>
   <p><b>Como a rota é escolhida.</b> O motor gera candidatas com seis calibrações, entre elas evitar
   degrau, exigir largura e cortar travessia, em dois pesos; descarta as que passam do orçamento de
   tempo e escolhe pelo saldo de indicadores ganhos menos perdidos. Empate não conta como vitória. A
@@ -468,16 +445,7 @@ for (const sel of ["#origem", "#destino"]) {
 }
 
 /* ---------- medidas ---------- */
-const mediasDe = caminho => {
-  let so = 0, pa = 0, d = 0, toca = 0;
-  for (let i = 0; i < caminho.length - 1; i++) {
-    if (!Motor.andou(caminho[i], caminho[i + 1])) continue;
-    const a = D.arestas[caminho[i] >> 2], m = a[2];
-    so += (a[8] || 0) * m; pa += (a[9] || 0) * m; d += m;
-    if ((a[9] || 0) >= .999) toca++;
-  }
-  return d ? {sombra: so / d, parque: pa / d, toca} : {sombra: 0, parque: 0, toca: 0};
-};
+const mediasDe = Motor.mediasDe;   /* saber que sombra é a coluna 8 é do motor */
 const num = (v, c = 0) => v == null || !isFinite(v) ? "—"
   : v.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c});
 const pct = v => v == null || !isFinite(v) ? "—" : num(v, 1) + "%";
@@ -583,15 +551,17 @@ const naMoldura = (g, c) => {
  * desenhado em SVG logo abaixo — a mesma rota, a mesma medida, sem tile. */
 const COM_LEAFLET = typeof L !== "undefined";
 const cor = nome => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
-let mapa = null, pintado = null;
+/* Um estado de Leaflet por quadro, e não um global: a página que explica a
+ * escolha tem dois mapas na mesma tela. Quem só tem um continua sem dizer nada. */
+const MAPAS = new Map();
 
-function abrirMapa() {
+function abrirMapa(sel) {
   // a altura vai no elemento ANTES de criar o mapa: o Leaflet mede o contêiner
   // uma vez, e se a regra de altura só chegar depois (ela vem da classe que ele
   // mesmo adiciona) ele nasce com tamanho zero e todo fitBounds sai errado
-  const cx = $("#mapa");
+  const cx = $(sel);
   cx.style.height = "520px";
-  mapa = L.map(cx, {zoomControl: true, minZoom: 12, maxZoom: 19, maxBoundsViscosity: 1});
+  const mapa = L.map(cx, {zoomControl: true, minZoom: 12, maxZoom: 19, maxBoundsViscosity: 1});
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
     attribution: 'ruas e prédios © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · calçadas: GeoSampa'
   }).addTo(mapa);
@@ -606,14 +576,16 @@ function abrirMapa() {
    * fora dela é devolvido. Fora daqui não há calçada cadastrada, e um mapa que
    * deixa chegar ao Rio promete o que não tem. */
   mapa.setMinZoom(mapa.getZoom());
+  return mapa;
 }
 
 const paraLatLng = coords => coords.map(p => [p[1], p[0]]);
 
-function desenharNoMapa(comum, nossa, pontos) {
-  if (!mapa) abrirMapa();
-  if (pintado) mapa.removeLayer(pintado);
-  pintado = L.layerGroup().addTo(mapa);
+function desenharNoMapa(comum, nossa, pontos, sel) {
+  if (!MAPAS.has(sel)) MAPAS.set(sel, {mapa: abrirMapa(sel), pintado: null});
+  const estado = MAPAS.get(sel), mapa = estado.mapa;
+  if (estado.pintado) mapa.removeLayer(estado.pintado);
+  const pintado = estado.pintado = L.layerGroup().addTo(mapa);
   const caixa = [];
   const cabe = p => caixa.push([p[1], p[0]]);
 
@@ -667,8 +639,8 @@ function desenharNoMapa(comum, nossa, pontos) {
   if (caixa.length) mapa.fitBounds(caixa, {padding: [30, 30], animate: false});
 }
 
-function desenhar(comum, nossa, pontos) {
-  if (COM_LEAFLET) return desenharNoMapa(comum, nossa, pontos);
+function desenhar(comum, nossa, pontos, sel = "#mapa") {
+  if (COM_LEAFLET) return desenharNoMapa(comum, nossa, pontos, sel);
   const W = 720, H = 470;
   const caixa = encherOQuadro(caixaDe([comum, nossa].filter(Boolean), pontos), W, H, 16);
   const f = projetor(W, H, 16, caixa);
@@ -747,7 +719,7 @@ function desenhar(comum, nossa, pontos) {
              recuo > 25 ? `: a rota começa neste cruzamento, a ${recuo} m` : ""}</title></circle>`;
   }
   s += `</svg>`;
-  $("#mapa").innerHTML = s;
+  $(sel).innerHTML = s;
 }
 
 /* ---------- veredito ----------
@@ -944,121 +916,6 @@ function frase(p) {
     return `<li>Atravesse a ${rua} ·${semRampa || " a travessia tem rampa"}</li>`;
   if (p.tipo === "chegou") return `<li>Chegou.</li>`;
   return `<li>${p.tipo} ${rua}</li>`;
-}
-
-/* ---------- bateria ---------- */
-const ROTULO_PREF = {passeio: "equilibrada", sombra: "mais sombra", parque: "praças",
-                     turismo: "turismo", "sombra+parque": "sombra e praças"};
-const PROVAS = [];
-/* O cruzamento que interessa: a MESMA volta pedida de três jeitos. */
-[0, 3, 9].forEach(i => ["passeio", "sombra", "parque"].forEach(pf =>
-  PROVAS.push({tipo: "volta", o: i, min: 20, pref: pf})));
-[0, 4].forEach(i => ["passeio", "sombra", "parque"].forEach(pf =>
-  PROVAS.push({tipo: "volta", o: i, min: 40, pref: pf})));
-/* Os pares atravessam o recorte inteiro: Sumarezinho no norte, Vila Madalena no
- * meio, Pinheiros e o Largo da Batata no sul, a Praça do Pôr do Sol no oeste e a
- * Benedito Calixto no leste — que é o lugar que o piloto cortava fora. */
-[[0,2],[0,1],[0,3],[0,4],[0,6],[9,1],[1,4],[3,9],[5,3],[2,6],[4,7],[8,1],[9,8],[6,4]]
-  .forEach(([a, b]) => PROVAS.push({tipo: "ate", o: a, d: b}));
-
-$("#rodar").onclick = () => {
-  const b = $("#rodar"); b.disabled = true;
-  $("#provas").innerHTML = "";
-  const folgaMin = +$("#folga").value;
-  const acc = [];
-  let i = 0;
-  const passo = () => {
-    if (i >= PROVAS.length) {
-      b.disabled = false; b.textContent = "rodar de novo"; resumir(acc); return;
-    }
-    b.textContent = `rodando ${i + 1} de ${PROVAS.length}…`;
-    const p = PROVAS[i++];
-    const o = PONTOS[p.o];
-    const pf = p.pref || "passeio";
-    /* Volta e trajeto são medidos diferente de propósito: a volta não tem
-     * contra o que competir, então as colunas de placar ficam vazias nela. */
-    let reg;
-    if (p.tipo === "volta") {
-      const v = Motor.rotaCircular(o.no, p.min, {modo: pf});
-      if (!v) { setTimeout(passo, 0); return; }
-      const r = Motor.resumir(v.caminho), md = mediasDe(v.caminho);
-      reg = {volta: true,
-        rotulo: `volta de ${p.min} min · ${ROTULO_PREF[pf] || pf} · ${o.nome}`,
-        leitura: `${Math.round(r.minutos)} min para ${p.min} pedidos`,
-        m: r.distancia_m, mais: 0, sombra: md.sombra, praca: md.parque, toca: md.toca,
-        fora: r.pct_ruim, pior: r.pior_livre_m, semRampa: r.sem_rampa, travessias: r.travessias,
-        nota: r.nota, ganha: [], perde: [], curtaVenceu: false};
-    } else {
-      const esc = Motor.escolherRota(o.no, PONTOS[p.d].no, pf, {folgaMin});
-      if (!esc) { setTimeout(passo, 0); return; }
-      const n = esc.nossa, c = esc.curta, md = mediasDe(n.caminho);
-      reg = {volta: false, rotulo: `${o.nome} → ${PONTOS[p.d].nome}`, leitura: n.rotulo,
-        m: n.distancia_m, mais: esc.minutosAMais, sombra: md.sombra, praca: md.parque, toca: md.toca,
-        fora: n.pct_ruim, foraC: c.pct_ruim, pior: n.pior_livre_m, piorC: c.piorC || c.pior_livre_m,
-        semRampa: n.sem_rampa, semRampaC: c.sem_rampa, nota: n.nota, notaC: c.nota,
-        ganha: n.ganha, perde: n.perde, curtaVenceu: esc.aMaisCurtaVenceu};
-    }
-    acc.push(reg);
-    const marca = (v, bom) => `<td class="${bom === false ? "pior" : bom === true ? "melhor" : ""}">${v}</td>`;
-    const tem = (lista, rot) => lista.indexOf(rot) >= 0;
-    const g = rot => tem(reg.ganha, rot) ? true : tem(reg.perde, rot) ? false : null;
-    $("#provas").insertAdjacentHTML("beforeend", `<tr>
-      <td>${reg.rotulo}</td>
-      <td class="leitura">${reg.curtaVenceu ? "a mais curta já era a melhor" : reg.leitura}</td>
-      <td>${num(reg.m)}</td>
-      <td>${reg.volta ? "—" : (reg.mais > 0.05 ? "+" : "") + num(reg.mais, 1) + " min"}</td>
-      ${marca(pct(reg.fora), g("metros fora da norma"))}
-      ${marca(metros(reg.pior), g("pior faixa livre"))}
-      ${marca(reg.semRampa + " de " + (reg.volta ? reg.travessias : reg.semRampaC),
-              g("travessias sem rampa"))}
-      ${marca(num(reg.nota, 2), g("nota de passeio"))}
-      <td class="${reg.volta ? "" : reg.perde.length ? "" : "melhor"}">${
-        reg.volta ? `sombra ${num(reg.sombra, 2)} · praça ${num(reg.praca, 2)}`
-        : reg.curtaVenceu ? "empata"
-        : reg.ganha.length + " de 4" + (reg.perde.length ? ", abre mão de " + reg.perde.length : "")}</td>
-    </tr>`);
-    setTimeout(passo, 0);
-  };
-  passo();
-};
-
-function resumir(acc) {
-  if (!acc.length) return;
-  const mediana = xs => { const s = [...xs].sort((a, b) => a - b);
-    return s[Math.floor(s.length / 2)]; };
-  const ab = acc.filter(r => !r.volta), voltas = acc.filter(r => r.volta);
-  const ganhaTudo = ab.filter(r => !r.perde.length && r.ganha.length).length;
-  const curtaVenceu = ab.filter(r => r.curtaVenceu).length;
-  const abandonados = ab.reduce((t, r) => t + r.perde.length, 0);
-  const dentro = ab.filter(r => (r.pior || 0) >= K.FAIXA_LIVRE_MIN_M).length;
-  const dentroC = ab.filter(r => (r.piorC || 0) >= K.FAIXA_LIVRE_MIN_M).length;
-  const rampa = ab.filter(r => r.semRampa <= r.semRampaC).length;
-  const porPref = (p, campo) => {
-    const xs = voltas.filter(r => r.rotulo.indexOf("· " + p + " ·") >= 0);
-    return xs.length ? mediana(xs.map(r => r[campo])) : null;
-  };
-  const so = porPref("mais sombra", "sombra"), soEq = porPref("equilibrada", "sombra");
-  const pa = porPref("praças", "praca"), paEq = porPref("equilibrada", "praca");
-  $("#resumo").hidden = false;
-  $("#resumo").innerHTML = `
-    <div><dt>ganha em tudo</dt><dd>${ganhaTudo} de ${ab.length}</dd>
-      <small>trajetos que não perdem em nenhum dos quatro indicadores</small></div>
-    <div><dt>a mais curta venceu</dt><dd>${curtaVenceu} de ${ab.length}</dd>
-      <small>o app entrega a rota comum e diz por quê</small></div>
-    <div><dt>tempo a mais</dt><dd>+${num(mediana(ab.map(r => r.mais)), 1)} min</dd>
-      <small>mediana; teto de +${$("#folga").value} min por escolha sua</small></div>
-    <div><dt>indicadores abandonados</dt><dd>${abandonados}</dd>
-      <small>de ${4 * ab.length} disputados nos ${ab.length} trajetos</small></div>
-    <div><dt>gargalo dentro da norma</dt><dd>${dentro} de ${ab.length}</dd>
-      <small>contra ${dentroC} das rotas mais curtas</small></div>
-    <div><dt>travessias sem rampa</dt><dd>${rampa} de ${ab.length}</dd>
-      <small>trajetos com menos degraus que a mais curta, ou empatados</small></div>
-    ${so != null ? `<div><dt>volta pedindo sombra</dt><dd>${num(so, 2)}</dd>
-      <small>sombra média, contra ${num(soEq, 2)} na equilibrada</small></div>` : ""}
-    ${pa != null ? `<div><dt>volta pedindo praças</dt><dd>${num(pa, 2)}</dd>
-      <small>proximidade de praça, contra ${num(paEq, 2)} na equilibrada</small></div>` : ""}
-    <div><dt>voltas fora da norma</dt><dd>${voltas.filter(r => r.fora > 0).length} de ${voltas.length}</dd>
-      <small>voltas que encostam em calçada abaixo de 1,20 m</small></div>`;
 }
 
 /* Abre com um trajeto já traçado, para a página mostrar o que faz antes de
