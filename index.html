@@ -21,18 +21,20 @@
   --copa:#2E7D5B;      /* nossa rota */
   --asfalto:#79848F;   /* a rota comum */
   --fora:#B4402B;      /* abaixo de 1,20 m */
-  /* O basemap é contexto, não conteúdo — a mesma escolha do dashboard de
-     calçadas. Ele desbota para o dado mandar, e segue o tema da página em vez
-     de impor um. Monocromático aqui é separação por TOM: a praça é mais clara
-     que o quarteirão, não é verde. */
-  --mapa-chao:#F0EFEC;
-  --mapa-predio:#E3E1DA; --mapa-predio-borda:#D3D1C9;
-  --mapa-verde:#E8EAE2; --mapa-verde-borda:#D5D8CC;
-  --mapa-agua:#DCDBD4;
-  --mapa-via:#C6C4BC; --mapa-tinta:#84837D;
-  --mapa-curta:#4B535C;     /* a rota mais curta: escura sobre mapa claro */
-  --mapa-nossa:#1F7A54;     /* a nossa: a única cor viva da tela */
-  --mapa-alerta:#BC3F26;    /* abaixo de 1,20 m, e travessia sem rampa */
+  /* O MAPA É NOTURNO, sempre, como o do Waze, e não segue o tema da página: é o
+     azul escuro que faz a rota e os destinos saltarem. O FUNDO é monocromático,
+     mas praça e ponto turístico não entram nessa regra: eles são conteúdo, e
+     conteúdo precisa de cor própria, senão a pessoa não enxerga para onde a
+     volta está indo. */
+  --mapa-chao:#1B2430;
+  --mapa-predio:#232E3D; --mapa-predio-borda:#2B3849;
+  --mapa-agua:#141C26;
+  --mapa-via:#3A485E; --mapa-tinta:#93A3BD;
+  --mapa-verde:#24544B; --mapa-verde-borda:#3C8677;   /* praça e parque */
+  --mapa-turismo:#E8B44A;                             /* ponto turístico */
+  --mapa-curta:#C3D0E6;     /* a rota mais curta: clara sobre o azul */
+  --mapa-nossa:#35E08F;     /* a nossa: verde vivo, bem acima do tom da praça */
+  --mapa-alerta:#FF6B5A;    /* abaixo de 1,20 m, e travessia sem rampa */
   --praca:#E9E8E1; --praca-borda:#D2D0C7;
   --predio:#DFDDD6; --predio-borda:#CBC8BF; --agua:#CFCEC7; --quadra:#F1F0EB;
   --sombra:0 1px 2px rgba(21,23,26,.06), 0 14px 34px -22px rgba(21,23,26,.34);
@@ -43,12 +45,6 @@
   --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
   --guia:#2C3035; --guia2:#24272B;
   --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
-  --mapa-chao:#141413;
-  --mapa-predio:#232322; --mapa-predio-borda:#2C2C2A;
-  --mapa-verde:#232522; --mapa-verde-borda:#2E312C;
-  --mapa-agua:#101010;
-  --mapa-via:#3A3A37; --mapa-tinta:#8D8C84;
-  --mapa-curta:#CFD4DC; --mapa-nossa:#4FD694; --mapa-alerta:#F2705A;
   --praca:#2E3236; --praca-borda:#3A3F44;
   --predio:#26292D; --predio-borda:#2F3338; --agua:#1A1D20; --quadra:#131618;
   --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
@@ -59,12 +55,6 @@
   --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
   --guia:#2C3035; --guia2:#24272B;
   --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
-  --mapa-chao:#141413;
-  --mapa-predio:#232322; --mapa-predio-borda:#2C2C2A;
-  --mapa-verde:#232522; --mapa-verde-borda:#2E312C;
-  --mapa-agua:#101010;
-  --mapa-via:#3A3A37; --mapa-tinta:#8D8C84;
-  --mapa-curta:#CFD4DC; --mapa-nossa:#4FD694; --mapa-alerta:#F2705A;
   --praca:#2E3236; --praca-borda:#3A3F44;
   --predio:#26292D; --predio-borda:#2F3338; --agua:#1A1D20; --quadra:#131618;
   --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
@@ -155,17 +145,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .leaflet-bar a:hover{background:var(--guia2)}
 .leaflet-tooltip{background:var(--painel); color:var(--tinta); border:1px solid var(--guia);
   box-shadow:var(--sombra); font-size:12px}
-/* Mesma receita do dashboard de calçadas, na variante de perto: o tile perde a
-   cor e desbota, mas não some. Aqui a pessoa precisa ler o nome da rua para
-   saber que continua no mesmo lugar — desbotar demais tira a única âncora que
-   ela tem. A opacidade deixa o fundo da página aparecer por trás, e é isso que
-   dá ao mapa a cor da página em vez de uma cor própria. */
+/* O tile do OSM pinta parque de verde, via de amarelo e água de azul, e no meio
+   disso a rota some. A cadeia abaixo tira a cor, inverte para escurecer e
+   reintroduz um matiz só, o azul-petróleo, por sépia mais rotação de matiz. Fica
+   escuro em qualquer tema: é o fundo que faz a rota e os destinos saltarem. */
 .leaflet-container{background:var(--mapa-chao)}
-.leaflet-tile-pane{filter:grayscale(1) contrast(.9) brightness(1.02) opacity(.85)}
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .leaflet-tile-pane{
-  filter:grayscale(1) invert(1) contrast(.85) brightness(.95) opacity(.7)} }
-:root[data-theme="dark"] .leaflet-tile-pane{
-  filter:grayscale(1) invert(1) contrast(.85) brightness(.95) opacity(.7)}
+.leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.62) contrast(1.22)
+  sepia(1) hue-rotate(186deg) saturate(1.55) brightness(1.02)}
 .legenda-mapa{display:flex; gap:15px; flex-wrap:wrap; padding:11px 15px;
   border-top:1px solid var(--guia2); font-size:12px; color:var(--tinta2)}
 .legenda-mapa i{display:inline-block; width:15px; height:3px; border-radius:2px;
@@ -334,10 +320,10 @@ footer b{color:var(--tinta2)}
       <span><i style="background:var(--mapa-nossa)"></i>a que o app sugere</span>
       <span><i style="background:var(--mapa-alerta)"></i>trecho abaixo de 1,20 m</span>
       <span><i style="background:var(--tinta3);height:2px"></i>os últimos metros até o cruzamento</span>
-      <span><i style="background:var(--mapa-verde);height:9px;border-radius:3px;border:1px solid var(--mapa-verde-borda)"></i>praça ou parque</span>
+      <span><i style="background:var(--mapa-verde);height:10px;border-radius:3px;border:1px solid var(--mapa-verde-borda)"></i>praça ou parque</span>
       <span><i style="background:var(--mapa-via);height:2px"></i>ruas do bairro</span>
       <span><i style="background:var(--mapa-predio);height:9px;border-radius:2px"></i>prédio</span>
-      <span><i style="background:var(--mapa-chao);height:9px;width:9px;border-radius:50%;border:1px solid var(--mapa-tinta)"></i>ponto turístico</span>
+      <span><i style="background:var(--mapa-turismo);height:10px;width:10px;border-radius:50%"></i>ponto turístico</span>
     </div>
   </div>
   <div class="veredito">
@@ -634,12 +620,12 @@ function desenharNoMapa(comum, nossa, pontos) {
   for (const pq of (D.parques || []))
     L.polygon(paraLatLng(pq.g), {color: cor("--mapa-verde-borda"), weight: 1,
       fillColor: cor("--mapa-verde"),
-      fillOpacity: .5, interactive: !!pq.nome})
+      fillOpacity: .85, interactive: !!pq.nome})
       .bindTooltip(pq.nome || "praça").addTo(pintado);
 
   for (const pt of (D.turismo || []))
-    L.circleMarker([pt.g[1], pt.g[0]], {radius: 3.4, color: cor("--mapa-tinta"), weight: 1.2,
-      fillColor: cor("--mapa-chao"), fillOpacity: 1})
+    L.circleMarker([pt.g[1], pt.g[0]], {radius: 4.2, color: cor("--mapa-chao"), weight: 1.4,
+      fillColor: cor("--mapa-turismo"), fillOpacity: 1})
       .bindTooltip(`${pt.nome}<br><span style="color:var(--tinta3)">${pt.tipo}</span>`)
       .addTo(pintado);
 
@@ -713,8 +699,8 @@ function desenhar(comum, nossa, pontos) {
   for (const pt of (D.turismo || [])) {
     if (pt.g[0] < caixa[0] || pt.g[0] > caixa[2] || pt.g[1] < caixa[1] || pt.g[1] > caixa[3]) continue;
     const [x, y] = f(pt.g[0], pt.g[1]);
-    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="var(--mapa-chao)"
-           stroke="var(--mapa-tinta)" stroke-width="1.2"><title>${pt.nome}</title></circle>`;
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.8" fill="var(--mapa-turismo)"
+           stroke="var(--mapa-chao)" stroke-width="1.3"><title>${pt.nome}</title></circle>`;
   }
   const porClasse = TRACO.map(() => "");
   for (let i = 0; i < D.geo.length; i++) {
