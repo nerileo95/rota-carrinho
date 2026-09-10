@@ -337,6 +337,10 @@ footer b{color:var(--tinta2)}
   os 14.017 endereços com número que o OpenStreetMap tem aqui, com o mesmo par de coordenadas que o
   Nominatim devolve. O trajeto começa no cruzamento mais próximo dele — 49 m a pé, e o mapa desenha
   esses metros pontilhados em vez de fingir que a rota nasce na porta.</p>
+  <p id="tem-site" hidden><b>Este app com mapa de verdade.</b> A mesma página, servida fora daqui,
+  carrega o Leaflet e os tiles do OpenStreetMap: o mapa arrasta, dá zoom e cada trecho da rota
+  responde ao mouse com a rua, o lado da calçada e a faixa livre. Está em
+  <a href="https://nerileo95.github.io/rota-carrinho/">nerileo95.github.io/rota-carrinho</a>.</p>
   <p><b>O mapa.</b> Não é imagem de tile — a política de segurança desta página bloqueia buscar
   imagem de qualquer servidor externo. Ele é desenhado aqui, a partir da geometria de verdade do
   OpenStreetMap: 34.830 prédios, a água, as praças e as 10.000 linhas de via, com a espessura do
@@ -953,6 +957,8 @@ function resumir(acc) {
 /* Abre com um trajeto já traçado, para a página mostrar o que faz antes de
  * qualquer clique — e com um caso representativo da bateria (+25% de nota,
  * 0,3% fora da norma), não com o melhor nem com o pior. */
+// o convite para a versão com mapa arrastável só faz sentido onde ela não está
+if (!COM_LEAFLET) $("#tem-site").hidden = false;
 trocarModo("ate");
 $("#destino").value = 3;   /* Largo da Batata */
 tracar();
