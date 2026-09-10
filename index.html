@@ -21,20 +21,18 @@
   --copa:#2E7D5B;      /* nossa rota */
   --asfalto:#79848F;   /* a rota comum */
   --fora:#B4402B;      /* abaixo de 1,20 m */
-  /* O MAPA TEM PALETA PRÓPRIA, e ela não segue o tema da página: é sempre
-     noturna, como a do Waze. O fundo azul-petróleo escuro é o que faz as duas
-     rotas saltarem — no cinza claro a rota mais curta sumia no próprio fundo.
-     Estes tokens ficam fora dos blocos de tema de propósito. */
-  --mapa-chao:#1B2430;
-  --mapa-predio:#232E3D; --mapa-predio-borda:#2B3849;
-  /* a praça é mais clara que o quarteirão, não é verde: monocromático de
-     verdade quer dizer separação por TOM, não por matiz */
-  --mapa-verde:#26333F; --mapa-verde-borda:#33424F;
-  --mapa-agua:#141C26;
-  --mapa-via:#3A485E; --mapa-tinta:#8A99B4;
-  --mapa-curta:#C3D0E6;     /* a rota mais curta: neutra e clara */
-  --mapa-nossa:#35E08F;     /* a nossa: a única cor viva da tela */
-  --mapa-alerta:#FF6B5A;    /* abaixo de 1,20 m, e travessia sem rampa */
+  /* O basemap é contexto, não conteúdo — a mesma escolha do dashboard de
+     calçadas. Ele desbota para o dado mandar, e segue o tema da página em vez
+     de impor um. Monocromático aqui é separação por TOM: a praça é mais clara
+     que o quarteirão, não é verde. */
+  --mapa-chao:#F0EFEC;
+  --mapa-predio:#E3E1DA; --mapa-predio-borda:#D3D1C9;
+  --mapa-verde:#E8EAE2; --mapa-verde-borda:#D5D8CC;
+  --mapa-agua:#DCDBD4;
+  --mapa-via:#C6C4BC; --mapa-tinta:#84837D;
+  --mapa-curta:#4B535C;     /* a rota mais curta: escura sobre mapa claro */
+  --mapa-nossa:#1F7A54;     /* a nossa: a única cor viva da tela */
+  --mapa-alerta:#BC3F26;    /* abaixo de 1,20 m, e travessia sem rampa */
   --praca:#E9E8E1; --praca-borda:#D2D0C7;
   --predio:#DFDDD6; --predio-borda:#CBC8BF; --agua:#CFCEC7; --quadra:#F1F0EB;
   --sombra:0 1px 2px rgba(21,23,26,.06), 0 14px 34px -22px rgba(21,23,26,.34);
@@ -45,6 +43,12 @@
   --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
   --guia:#2C3035; --guia2:#24272B;
   --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
+  --mapa-chao:#141413;
+  --mapa-predio:#232322; --mapa-predio-borda:#2C2C2A;
+  --mapa-verde:#232522; --mapa-verde-borda:#2E312C;
+  --mapa-agua:#101010;
+  --mapa-via:#3A3A37; --mapa-tinta:#8D8C84;
+  --mapa-curta:#CFD4DC; --mapa-nossa:#4FD694; --mapa-alerta:#F2705A;
   --praca:#2E3236; --praca-borda:#3A3F44;
   --predio:#26292D; --predio-borda:#2F3338; --agua:#1A1D20; --quadra:#131618;
   --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
@@ -55,6 +59,12 @@
   --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
   --guia:#2C3035; --guia2:#24272B;
   --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
+  --mapa-chao:#141413;
+  --mapa-predio:#232322; --mapa-predio-borda:#2C2C2A;
+  --mapa-verde:#232522; --mapa-verde-borda:#2E312C;
+  --mapa-agua:#101010;
+  --mapa-via:#3A3A37; --mapa-tinta:#8D8C84;
+  --mapa-curta:#CFD4DC; --mapa-nossa:#4FD694; --mapa-alerta:#F2705A;
   --praca:#2E3236; --praca-borda:#3A3F44;
   --predio:#26292D; --predio-borda:#2F3338; --agua:#1A1D20; --quadra:#131618;
   --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
@@ -146,14 +156,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .leaflet-bar a:hover{background:var(--guia2)}
 .leaflet-tooltip{background:var(--painel); color:var(--tinta); border:1px solid var(--guia);
   box-shadow:var(--sombra); font-size:12px}
-/* O tile do OSM pinta parque de verde, via de amarelo e água de azul, e no meio
-   disso as duas rotas somem. A cadeia abaixo o transforma no mapa noturno: tira
-   a cor, inverte para escurecer, e reintroduz UMA cor só — o azul-petróleo —
-   por sepia mais rotação de matiz. O mapa não segue o tema da página: é sempre
-   noturno, porque é o fundo que faz a rota saltar. */
+/* Mesma receita do dashboard de calçadas, na variante de perto: o tile perde a
+   cor e desbota, mas não some. Aqui a pessoa precisa ler o nome da rua para
+   saber que continua no mesmo lugar — desbotar demais tira a única âncora que
+   ela tem. A opacidade deixa o fundo da página aparecer por trás, e é isso que
+   dá ao mapa a cor da página em vez de uma cor própria. */
 .leaflet-container{background:var(--mapa-chao)}
-.leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.62) contrast(1.22)
-  sepia(1) hue-rotate(186deg) saturate(1.55) brightness(1.02)}
+.leaflet-tile-pane{filter:grayscale(1) contrast(.9) brightness(1.02) opacity(.85)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .leaflet-tile-pane{
+  filter:grayscale(1) invert(1) contrast(.85) brightness(.95) opacity(.7)} }
+:root[data-theme="dark"] .leaflet-tile-pane{
+  filter:grayscale(1) invert(1) contrast(.85) brightness(.95) opacity(.7)}
 .legenda-mapa{display:flex; gap:15px; flex-wrap:wrap; padding:11px 15px;
   border-top:1px solid var(--guia2); font-size:12px; color:var(--tinta2)}
 .legenda-mapa i{display:inline-block; width:15px; height:3px; border-radius:2px;
