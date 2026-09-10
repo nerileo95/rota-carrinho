@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Rotas de calçada para quem empurra carrinho de bebê, em Pinheiros, Vila Madalena e Sumarezinho.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%9A%B6%3C/text%3E%3C/svg%3E">
+<title>Banco de Provas da Rota</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  /* concreto e copa de árvore — o assunto é calçada e sombra */
+  --chao:#EDEDE9; --painel:#FFFFFF; --fundo:#E3E3DE;
+  --tinta:#15171A; --tinta2:#5B6169; --tinta3:#8A9098;
+  --guia:#D3D2CC; --guia2:#E6E5E0;
+  --copa:#2E7D5B;      /* nossa rota */
+  --asfalto:#79848F;   /* a rota comum */
+  --fora:#B4402B;      /* abaixo de 1,20 m */
+  --praca:#CFE0D2; --praca-borda:#AFC9B5;
+  --predio:#DFDDD6; --predio-borda:#CBC8BF; --agua:#BCD3E0; --quadra:#E7E6E1;
+  --sombra:0 1px 2px rgba(21,23,26,.06), 0 14px 34px -22px rgba(21,23,26,.34);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  color-scheme: dark;
+  --chao:#16181A; --painel:#1E2124; --fundo:#101214;
+  --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
+  --guia:#2C3035; --guia2:#24272B;
+  --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
+  --praca:#22352A; --praca-borda:#2F4A38;
+  --predio:#26292D; --predio-borda:#2F3338; --agua:#1B2C38; --quadra:#191C1F;
+  --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --chao:#16181A; --painel:#1E2124; --fundo:#101214;
+  --tinta:#E9E9E4; --tinta2:#A3A9B0; --tinta3:#767D85;
+  --guia:#2C3035; --guia2:#24272B;
+  --copa:#5FBE8C; --asfalto:#8C97A2; --fora:#E0705A;
+  --praca:#22352A; --praca-borda:#2F4A38;
+  --predio:#26292D; --predio-borda:#2F3338; --agua:#1B2C38; --quadra:#191C1F;
+  --sombra:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -22px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+/* .campo usa display:flex e vence o hidden do atributo se ele não for forçado */
+[hidden]{display:none !important}
+html,body{margin:0}
+body{background:var(--chao); color:var(--tinta);
+  font:400 15px/1.5 Archivo,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.mono,.num{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+h1,h2{margin:0; text-wrap:balance}
+
+.folha{max-width:1180px; margin:0 auto; padding:26px 20px 52px}
+
+/* ---------- cabeçalho ---------- */
+.selo{font:600 10px/1 "IBM Plex Mono",monospace; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--tinta3)}
+h1{font-size:clamp(23px,3vw,31px); font-weight:700; letter-spacing:-.024em; margin:11px 0 8px}
+.chamada{color:var(--tinta2); max-width:66ch; margin:0 0 16px; font-size:14.5px}
+.normas{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:22px}
+.norma{font:500 11.5px/1 "IBM Plex Mono",monospace; color:var(--tinta2);
+  border:1px solid var(--guia); border-radius:99px; padding:6px 11px; background:var(--painel)}
+
+/* ---------- barra de comando ---------- */
+.comando{background:var(--painel); border:1px solid var(--guia); border-radius:13px;
+  padding:14px 16px; display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;
+  box-shadow:var(--sombra); margin-bottom:16px}
+.campo{display:flex; flex-direction:column; gap:5px; min-width:0}
+.campo > label{font:600 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--tinta3)}
+select,input[type=range]{font:inherit; color:var(--tinta)}
+select{background:var(--fundo); border:1px solid var(--guia); border-radius:8px;
+  padding:8px 10px; font-size:13.5px; max-width:210px}
+.modos{display:flex; border:1px solid var(--guia); border-radius:99px; overflow:hidden}
+.modos button{border:0; background:var(--painel); color:var(--tinta2); cursor:pointer;
+  padding:8px 15px; font:500 13px/1 Archivo,sans-serif}
+.modos button[aria-pressed="true"]{background:var(--tinta); color:var(--painel)}
+.tracar{border:0; background:var(--copa); color:#fff; cursor:pointer; border-radius:9px;
+  padding:10px 20px; font:600 13.5px/1 Archivo,sans-serif}
+.tracar:disabled{opacity:.5; cursor:progress}
+.minutos{display:flex; align-items:center; gap:9px}
+.minutos output{font:600 15px/1 "IBM Plex Mono",monospace; min-width:52px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--copa); outline-offset:2px}
+
+/* ---------- palco: mapa + veredito ---------- */
+.palco{display:grid; grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr); gap:16px;
+  align-items:start}
+@media (max-width:900px){ .palco{grid-template-columns:1fr} }
+.quadro{background:var(--painel); border:1px solid var(--guia); border-radius:13px;
+  overflow:hidden; box-shadow:var(--sombra)}
+/* `#mapa > svg`, e não `.quadro svg`: a regra larga pegava também os SVG do
+   Leaflet — a bandeirinha de 12 px da atribuição virava um retângulo de meio
+   mapa, e a camada de vetores da rota colapsava para altura zero */
+#mapa > svg{display:block; width:100%; height:auto; background:var(--fundo)}
+/* com Leaflet o mapa é um contêiner de verdade e precisa de altura própria */
+.leaflet-container{height:520px; width:100%; background:var(--fundo);
+  font:400 12px/1.4 Archivo,sans-serif; border-radius:12px 12px 0 0}
+.leaflet-container a{color:var(--tinta2)}
+.leaflet-control-attribution{background:var(--painel) !important; color:var(--tinta3)}
+.leaflet-bar a{background:var(--painel); color:var(--tinta); border-color:var(--guia)}
+.leaflet-bar a:hover{background:var(--guia2)}
+.leaflet-tooltip{background:var(--painel); color:var(--tinta); border:1px solid var(--guia);
+  box-shadow:var(--sombra); font-size:12px}
+/* o tile do OSM só existe em claro; no tema escuro ele é invertido para não
+   ser uma placa branca no meio da página */
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .leaflet-tile-pane{
+  filter:invert(1) hue-rotate(180deg) brightness(.93) contrast(.88)} }
+:root[data-theme="dark"] .leaflet-tile-pane{
+  filter:invert(1) hue-rotate(180deg) brightness(.93) contrast(.88)}
+.legenda-mapa{display:flex; gap:15px; flex-wrap:wrap; padding:11px 15px;
+  border-top:1px solid var(--guia2); font-size:12px; color:var(--tinta2)}
+.legenda-mapa i{display:inline-block; width:15px; height:3px; border-radius:2px;
+  margin-right:6px; vertical-align:middle}
+
+.veredito{background:var(--painel); border:1px solid var(--guia); border-radius:13px;
+  padding:16px 17px; box-shadow:var(--sombra)}
+.veredito h2{font-size:15.5px; font-weight:600; letter-spacing:-.01em}
+.veredito .onde{font:500 11.5px/1.4 "IBM Plex Mono",monospace; color:var(--tinta3);
+  margin:4px 0 14px}
+table.placar{width:100%; border-collapse:collapse}
+table.placar th{font:600 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--tinta3); text-align:right; padding:0 0 8px; font-weight:600}
+table.placar th:first-child{text-align:left}
+table.placar td{padding:7px 0; border-top:1px solid var(--guia2); font-size:13px;
+  color:var(--tinta2)}
+table.placar td.n{text-align:right; font:500 13.5px/1 "IBM Plex Mono",monospace;
+  font-variant-numeric:tabular-nums; color:var(--tinta)}
+table.placar td.n.nossa{color:var(--copa); font-weight:600}
+table.placar td.n.ruim{color:var(--fora)}
+.cabeca-comum{color:var(--asfalto)} .cabeca-nossa{color:var(--copa)}
+.provas .leitura{color:var(--tinta2); font-size:11px}
+.nota-veredito{font-size:12px; line-height:1.45; color:var(--tinta3); margin:14px 0 0;
+  padding-top:12px; border-top:1px solid var(--guia2)}
+
+/* ---------- instruções ---------- */
+.fala{margin-top:16px; background:var(--painel); border:1px solid var(--guia);
+  border-radius:13px; padding:14px 17px; box-shadow:var(--sombra)}
+.fala h2{font-size:14px; font-weight:600; margin-bottom:9px}
+.fala ol{margin:0; padding-left:20px; color:var(--tinta2); font-size:13.5px; line-height:1.7}
+.fala li::marker{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--tinta3)}
+
+/* ---------- banco de provas ---------- */
+.banco{margin-top:30px}
+.banco-cabeca{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px}
+.banco h2{font-size:19px; font-weight:700; letter-spacing:-.018em}
+.banco p{color:var(--tinta2); max-width:70ch; margin:0 0 14px; font-size:14px}
+.rodar{border:1px solid var(--tinta); background:var(--tinta); color:var(--painel);
+  cursor:pointer; border-radius:9px; padding:9px 17px; font:600 13px/1 Archivo,sans-serif}
+.rodar:disabled{opacity:.55; cursor:progress}
+.rolo{overflow-x:auto; background:var(--painel); border:1px solid var(--guia);
+  border-radius:13px; box-shadow:var(--sombra)}
+table.provas{width:100%; border-collapse:collapse; font-size:12.5px; min-width:660px}
+table.provas th{position:sticky; top:0; background:var(--painel); text-align:right;
+  font:600 9.5px/1.3 "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--tinta3); padding:12px 13px 9px; border-bottom:1px solid var(--guia)}
+table.provas th:first-child,table.provas td:first-child{text-align:left}
+table.provas td{padding:8px 13px; border-bottom:1px solid var(--guia2); text-align:right;
+  font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; color:var(--tinta)}
+table.provas td:first-child{font-family:Archivo,sans-serif; color:var(--tinta2)}
+table.provas tr:last-child td{border-bottom:0}
+td.melhor{color:var(--copa); font-weight:600}
+td.pior{color:var(--fora)}
+.resumo-banco{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px;
+  background:var(--guia); border:1px solid var(--guia); border-radius:13px; overflow:hidden;
+  margin-top:14px}
+.resumo-banco div{background:var(--painel); padding:14px 16px}
+.resumo-banco dt{font:600 9.5px/1.3 "IBM Plex Mono",monospace; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--tinta3); margin-bottom:7px}
+.resumo-banco dd{margin:0; font:600 21px/1 "IBM Plex Mono",monospace; letter-spacing:-.02em}
+.resumo-banco small{display:block; font:400 11.5px/1.4 Archivo,sans-serif; color:var(--tinta3);
+  margin-top:6px}
+.vazio{padding:26px 16px; color:var(--tinta3); font-size:13px}
+
+footer{margin-top:34px; padding-top:18px; border-top:1px solid var(--guia);
+  color:var(--tinta3); font-size:12.5px}
+footer p{max-width:78ch; margin:0 0 8px}
+footer b{color:var(--tinta2)}
+@media (prefers-reduced-motion:no-preference){ .tracar,.rodar,.modos button{transition:opacity .12s ease} }
+</style>
+</head>
+<body>
+
+
+<div class="folha">
+<header>
+  <p class="selo">Pinheiros · Vila Madalena · Sumarezinho · 10.000 trechos</p>
+  <h1>Banco de Provas da Rota</h1>
+  <p class="chamada">O motor de rotas para quem empurra carrinho, rodando no seu navegador. Cada
+  trajeto é calculado <b>treze vezes sobre o mesmo grafo</b>: a rota mais curta, que é o que um mapa
+  comum entrega, e doze leituras diferentes do que "melhor" quer dizer. Todas são medidas pela mesma
+  régua — metros fora da norma, pior faixa livre, travessias sem rebaixamento de guia e nota de
+  passeio — e o app entrega <b>a que ganha em mais indicadores sem estourar o tempo que você aceita
+  andar a mais</b>. Quando nenhuma compensa, ele entrega a própria rota mais curta e diz isso.</p>
+  <p class="chamada" style="margin-top:.7rem">A área de amostra é <b>Pinheiros, Vila Madalena e
+  Sumarezinho inteiros</b> — 14,3 km², 10.000 trechos de rua e 8.659 trechos de calçada cadastrados.
+  O recorte anterior tinha 3,9 km² e cortava fora a Praça Benedito Calixto.</p>
+  <div class="normas">
+    <span class="norma">faixa livre ≥ 1,20 m · Decreto 59.671/2020</span>
+    <span class="norma">declividade ≤ 8,33% · NBR 9050</span>
+    <span class="norma">passo com carrinho 67 m/min</span>
+  </div>
+</header>
+
+<div class="comando">
+  <div class="campo">
+    <label id="rot-modo">o que fazer</label>
+    <div class="modos" role="group" aria-labelledby="rot-modo">
+      <button id="m-volta" aria-pressed="false">dar uma volta</button>
+      <button id="m-ate" aria-pressed="true">ir até</button>
+    </div>
+  </div>
+  <div class="campo">
+    <label for="origem">de onde</label>
+    <select id="origem"></select>
+  </div>
+  <div class="campo" id="campo-destino" hidden>
+    <label for="destino">até onde</label>
+    <select id="destino"></select>
+  </div>
+  <div class="campo" id="campo-pref">
+    <label id="rot-pref">como você quer andar</label>
+    <div class="modos" role="group" aria-labelledby="rot-pref">
+      <button data-pref="passeio" aria-pressed="true">equilibrada</button>
+      <button data-pref="sombra" aria-pressed="false">mais sombra</button>
+      <button data-pref="parque" aria-pressed="false">praças e parques</button>
+    </div>
+  </div>
+  <div class="campo" id="campo-folga">
+    <label for="folga">quanto tempo a mais você aceita</label>
+    <div class="minutos">
+      <input type="range" id="folga" min="0" max="12" step="1" value="5">
+      <output for="folga" id="saida-folga" class="mono">+5 min</output>
+    </div>
+  </div>
+  <div class="campo" id="campo-min">
+    <label for="minutos">quanto tempo</label>
+    <div class="minutos">
+      <input type="range" id="minutos" min="10" max="60" step="5" value="30">
+      <output for="minutos" id="saida-min" class="mono">30 min</output>
+    </div>
+  </div>
+  <button class="tracar" id="tracar">traçar</button>
+</div>
+
+<div class="palco">
+  <div class="quadro">
+    <div id="mapa"></div>
+    <div class="legenda-mapa">
+      <span><i style="background:var(--asfalto)"></i>a rota mais curta</span>
+      <span><i style="background:var(--copa)"></i>a que o app sugere</span>
+      <span><i style="background:var(--fora)"></i>trecho abaixo de 1,20 m</span>
+      <span><i style="background:var(--tinta3);height:2px"></i>os últimos metros até o cruzamento</span>
+      <span><i style="background:var(--praca);height:9px;border-radius:3px"></i>praça ou parque</span>
+      <span><i style="background:var(--guia);height:2px"></i>ruas do bairro</span>
+      <span><i style="background:var(--predio);height:9px;border-radius:2px"></i>prédio</span>
+    </div>
+  </div>
+  <div class="veredito">
+    <h2 id="titulo-veredito">Escolha um trajeto</h2>
+    <p class="onde" id="onde-veredito">o motor roda no navegador, sem servidor</p>
+    <table class="placar">
+      <thead id="cabeca-placar"><tr><th>medida</th><th class="cabeca-comum">mais curta</th><th class="cabeca-nossa">nossa</th></tr></thead>
+      <tbody id="placar"></tbody>
+    </table>
+    <p class="nota-veredito" id="nota-veredito">A nota de passeio soma sombra, iluminação, largura
+    livre e terreno plano. O peso que a usa carrega a penalidade da norma — sem isso o motor comprava
+    sombra com calçada estreita.</p>
+  </div>
+</div>
+
+<div class="fala" id="caixa-fala" hidden>
+  <h2>O que o app fala no ouvido</h2>
+  <ol id="fala"></ol>
+</div>
+
+<section class="banco">
+  <div class="banco-cabeca">
+    <h2>Bateria de provas</h2>
+    <button class="rodar" id="rodar">rodar as 29 rotas</button>
+  </div>
+  <p>Quinze voltas circulares — cada origem pedida de três jeitos, para ver a preferência mudar o
+  trajeto — e quatorze trajetos ponto a ponto que cruzam o recorte inteiro, a maioria saindo da
+  Rua Harmonia 942. Nos trajetos, cada linha mostra qual leitura venceu, quanto tempo a mais custou
+  e o placar contra a rota mais curta nos quatro indicadores; roda com o orçamento de tempo que
+  estiver no controle acima — vale rodar com +0 e com +5 min para ver o que o minuto extra compra.
+  Nas voltas não há placar, porque não há do que comparar: a última coluna mostra sombra e
+  proximidade de praça, que é o que a preferência muda.</p>
+  <div class="rolo">
+    <table class="provas">
+      <thead><tr>
+        <th>trajeto</th><th>leitura escolhida</th><th>metros</th><th>+ tempo</th>
+        <th>fora da norma</th><th>pior faixa livre</th><th>sem rampa</th><th>nota</th>
+        <th>placar</th>
+      </tr></thead>
+      <tbody id="provas"><tr><td colspan="9" class="vazio">Nenhuma prova rodada ainda.</td></tr></tbody>
+    </table>
+  </div>
+  <dl class="resumo-banco" id="resumo" hidden></dl>
+</section>
+
+<footer>
+  <p><b>Como ler.</b> "Fora da norma" é a fração do trajeto sobre calçada com faixa livre abaixo de
+  1,20 m, já descontando 0,70 m onde há árvore ou poste plantado dentro dela. "Pior faixa livre" é o
+  gargalo do trajeto — é ele que decide se o carrinho passa. "Sem rampa" conta as travessias em
+  cruzamento sem rebaixamento de guia mapeado. A coluna "placar" conta em quantos dos quatro indicadores a rota
+  escolhida ganha da mais curta, e quantos ela abandonou para caber no orçamento de tempo — empate
+  não conta para nenhum dos dois lados.</p>
+  <p><b>O que este banco não vê.</b> Só 10% dos cruzamentos têm rebaixamento mapeado: o motor
+  penaliza atravessar onde não há, mas não pode proibir. A nota de passeio nunca foi validada com um
+  pai ou uma mãe — os pesos são plausíveis, não testados, e essa é a primeira pergunta do co-design.
+  Esquerda e direita são geométricas, não correspondem a par e ímpar.</p>
+  <p><b>Por que a volta não é comparada.</b> Quem pede "me dá uma volta de 20 minutos" não tem
+  destino. A volta mais curta com o mesmo alvo de tempo é outra caminhada, por outras ruas — pôr as
+  duas lado a lado mede acaso, não decisão, e foi por isso que a comparação saiu daqui. O que se vê
+  na volta é o que ela é: quanto anda, quanto repete, quanta sombra, quantas praças encosta e quanto
+  disso fica abaixo da norma.</p>
+  <p><b>Como a rota é escolhida.</b> Um peso só entrega uma rota só, e ela às vezes perdia da mais
+  curta em um indicador — trocava travessia com rampa por sombra e chegava um minuto depois. Agora o
+  motor gera candidatas com seis calibrações (evitar degrau, exigir largura, cortar travessia…) em
+  dois pesos, joga fora as que passam do seu orçamento de tempo e escolhe pelo saldo
+  <i>indicadores ganhos menos perdidos</i>. Empate não conta como vitória. A rota mais curta entra
+  na disputa como candidata: se ninguém a supera, ela é a resposta. E quando ganhar tudo custaria
+  mais tempo do que você deu, a escolhida abre mão de um indicador e o app diz de qual.</p>
+  <p><b>A rota de comparação.</b> É o mesmo Dijkstra, sobre o mesmo grafo de pedestres do
+  OpenStreetMap, minimizando distância — o objetivo de um mapa de rotas comum. Ela não sabe a
+  largura da calçada, a declividade nem se o cruzamento tem rebaixamento de guia; anda pelos mesmos
+  quarteirões com a informação que um mapa comum tem. Não é uma chamada à API do Google, que a
+  política de segurança desta página bloqueia: é o mesmo algoritmo com o objetivo dela, que é o que
+  torna a comparação justa.</p>
+  <p><b>O ponto de partida.</b> Rua Harmonia 942 é um endereço de verdade dentro da área: está entre
+  os 14.017 endereços com número que o OpenStreetMap tem aqui, com o mesmo par de coordenadas que o
+  Nominatim devolve. O trajeto começa no cruzamento mais próximo dele — 49 m a pé, e o mapa desenha
+  esses metros pontilhados em vez de fingir que a rota nasce na porta.</p>
+  <p><b>O mapa.</b> Não é imagem de tile — a política de segurança desta página bloqueia buscar
+  imagem de qualquer servidor externo. Ele é desenhado aqui, a partir da geometria de verdade do
+  OpenStreetMap: 34.830 prédios, a água, as praças e as 10.000 linhas de via, com a espessura do
+  traço vinda da hierarquia da via. Os prédios somem sozinhos quando o enquadramento fica largo
+  demais para eles fazerem sentido.</p>
+  <p><b>Fontes.</b> Calçadas, árvores e postes: GeoSampa. Prédios, água, praças, rede caminhável e
+  rebaixamentos de guia: OpenStreetMap. O motor é o mesmo <code>motor.py</code> da POC, portado para o navegador e conferido
+  rota a rota: 100 de 100 com custo idêntico ao Python, em cinco pesos diferentes. O que é do
+  Python é o <i>custo</i> de cada calçada e de cada travessia; a escolha entre as candidatas é
+  camada de produto e vive só aqui no app.</p>
+</footer>
+</div>
+
+<script src="motor.js?v=1"></script>
+<script src="dados.js?v=1"></script>
+<script>
+const D = window.__DADOS__;
+D._rampa = new Set(D.rampa);
+Motor.iniciar(D);
+const K = D.constantes;
+
+/* ---------- lugares reconhecíveis: nó mais próximo de cada coordenada ---------- */
+/* Toda coordenada aqui foi geocodificada no Nominatim (OpenStreetMap), uma por
+ * uma. A lista anterior era de memória e errava feio: a Praça Benedito Calixto
+ * estava marcada 1 km a oeste do lugar real — e o lugar real ficava FORA da área
+ * de amostra do piloto. É por isso que a área foi ampliada.
+ * A Rua Harmonia 942 confere com o próprio índice de endereços do app
+ * (Rua Harmonia, 942, CEP 05435-001), que vem do OSM. */
+const LUGARES = [
+  ["Rua Harmonia, 942",       -46.69139, -23.55030],
+  ["Praça Benedito Calixto",  -46.68074, -23.55833],
+  ["Beco do Batman",          -46.68667, -23.55649],
+  ["Largo da Batata",         -46.69401, -23.56614],
+  ["Praça do Pôr do Sol",     -46.70235, -23.55401],
+  ["Rua Aspicuelta",          -46.68747, -23.55640],
+  ["Metrô Fradique Coutinho", -46.68428, -23.56606],
+  ["Praça dos Omaguás",       -46.69200, -23.56217],
+  ["Mercado de Pinheiros",    -46.69241, -23.56562],
+  ["Metrô Vila Madalena",     -46.69112, -23.54650],
+];
+const noPerto = (lon, lat) => {
+  let melhor = 0, dist = Infinity;
+  D.nos.forEach((p, i) => {
+    const dx = (p[0] - lon) * Math.cos(lat * Math.PI / 180), dy = p[1] - lat;
+    const d = dx * dx + dy * dy;
+    if (d < dist) { dist = d; melhor = i; }
+  });
+  return melhor;
+};
+const metrosEntre = (a, b) =>
+  Math.hypot((a[0] - b[0]) * Math.cos(a[1] * Math.PI / 180), a[1] - b[1]) * 111320;
+/* O ponto pedido e o cruzamento onde a rota realmente começa são coisas
+ * diferentes, e a diferença precisa aparecer. Com a área ampliada nenhum lugar
+ * está a mais de 50 m do cruzamento mais próximo — antes a Rua Harmonia 942
+ * ficava na borda do recorte, a 131 m. Guardar os dois deixa o mapa contar isso
+ * em vez de omitir. */
+const PONTOS = LUGARES.map(([nome, lon, lat]) => {
+  const no = noPerto(lon, lat);
+  return {nome, no, alvo: [lon, lat], recuo: Math.round(metrosEntre([lon, lat], D.nos[no]))};
+});
+
+const $ = s => document.querySelector(s);
+for (const sel of ["#origem", "#destino"]) {
+  $(sel).innerHTML = PONTOS.map((p, i) => `<option value="${i}">${p.nome}</option>`).join("");
+}
+
+/* ---------- medidas ---------- */
+const mediasDe = caminho => {
+  let so = 0, pa = 0, d = 0, toca = 0;
+  for (let i = 0; i < caminho.length - 1; i++) {
+    if (!Motor.andou(caminho[i], caminho[i + 1])) continue;
+    const a = D.arestas[caminho[i] >> 2], m = a[2];
+    so += (a[8] || 0) * m; pa += (a[9] || 0) * m; d += m;
+    if ((a[9] || 0) >= .999) toca++;
+  }
+  return d ? {sombra: so / d, parque: pa / d, toca} : {sombra: 0, parque: 0, toca: 0};
+};
+const num = (v, c = 0) => v == null || !isFinite(v) ? "—"
+  : v.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c});
+const pct = v => v == null || !isFinite(v) ? "—" : num(v, 1) + "%";
+const metros = v => v == null || !isFinite(v) ? "—" : num(v, 2) + " m";
+
+/* ---------- o cenário do mapa ----------
+ *
+ * Não há tile: a política de segurança da página publicada bloqueia buscar
+ * imagem de qualquer servidor externo. Então o mapa é DESENHADO a partir da
+ * geometria de verdade do OpenStreetMap — 34.830 prédios, a água e as praças —
+ * que veio embutida em inteiros: cada anel é [n, x0, y0, dx, dy, …] em passos
+ * de 1,1 m a partir do canto sudoeste da área. */
+function decodificar(flat) {
+  const O = D.bbox[0], S = D.bbox[1], E = D.passo_grau || 1e-5, out = [];
+  let i = 0;
+  while (i < flat.length) {
+    const n = flat[i++], g = new Array(n);
+    let x = flat[i++], y = flat[i++];
+    g[0] = [O + x * E, S + y * E];
+    for (let k = 1; k < n; k++) { x += flat[i++]; y += flat[i++]; g[k] = [O + x * E, S + y * E]; }
+    out.push(g);
+  }
+  return out;
+}
+const PREDIOS = decodificar(D.predios || []);
+const AGUA = decodificar(D.agua || []);
+/* Traço por hierarquia da via — avenida grossa, rua de bairro fina, caminho de
+ * pedestre mais fino ainda. É o que faz a malha ler como mapa e não como teia. */
+const TRACO = [2.6, 1.8, 1.15, 0.8, 0.6];
+
+/* ---------- mapa ---------- */
+/* O enquadramento inclui os PONTOS PEDIDOS, não só a rota: quando o endereço
+ * fica a algumas dezenas de metros do cruzamento onde o trajeto começa, o anel
+ * do ponto inicial caía fora da moldura e o mapa parecia começar no lugar
+ * errado. Enquadrar pela rota sozinha corta justamente o que se quer conferir. */
+const caixaDe = (caminhos, pontos) => {
+  let O = 180, L = -180, S = 90, N = -90;
+  const cabe = p => {
+    if (p[0] < O) O = p[0]; if (p[0] > L) L = p[0];
+    if (p[1] < S) S = p[1]; if (p[1] > N) N = p[1];
+  };
+  for (const c of caminhos) for (const t of trechosDe(c)) for (const p of D.geo[t.t]) cabe(p);
+  for (const pt of pontos || []) { cabe(D.nos[pt[0]]); if (pt[3]) cabe(pt[3]); }
+  if (O > L) return D.bbox;
+  const mx = Math.max((L - O) * .18, .0016), my = Math.max((N - S) * .18, .0012);
+  return [O - mx, S - my, L + mx, N + my];
+};
+/* Estica a caixa até a proporção do quadro. Sem isto o mapa vira uma tira: a
+ * rota é comprida e estreita, e sobrava painel vazio dos dois lados parecendo
+ * falta de dado, quando é só letterbox. */
+const encherOQuadro = (b, W, H, pad) => {
+  const k = Math.cos((b[1] + b[3]) / 2 * Math.PI / 180);
+  const larg = (b[2] - b[0]) * k, alt = b[3] - b[1];
+  const alvo = (W - 2 * pad) / (H - 2 * pad);
+  if (larg / alt < alvo) { const f = (alt * alvo / k - (b[2] - b[0])) / 2;
+    return [b[0] - f, b[1], b[2] + f, b[3]]; }
+  const f = (larg / alvo - alt) / 2;
+  return [b[0], b[1] - f, b[2], b[3] + f];
+};
+const projetor = (W, H, pad, caixa) => {
+  const b = caixa || D.bbox, k = Math.cos((b[1] + b[3]) / 2 * Math.PI / 180);
+  const dx = (b[2] - b[0]) * k, dy = b[3] - b[1];
+  const s = Math.min((W - 2 * pad) / dx, (H - 2 * pad) / dy);
+  const ox = (W - dx * s) / 2, oy = (H - dy * s) / 2;
+  return (lon, lat) => [(lon - b[0]) * k * s + ox, (b[3] - lat) * s + oy];
+};
+const linha = (coords, f) =>
+  coords.map((p, i) => (i ? "L" : "M") + f(p[0], p[1]).map(v => v.toFixed(1)).join(" ")).join("");
+const trechosDe = caminho => {
+  const out = [];
+  for (let i = 0; i < caminho.length - 1; i++) {
+    const a = caminho[i];
+    if (Motor.andou(a, caminho[i + 1])) out.push({t: a >> 2, lado: a & 1});
+  }
+  return out;
+};
+const travessiasDe = caminho => {
+  const out = [];
+  for (let i = 0; i < caminho.length - 1; i++) {
+    const a = caminho[i], b = caminho[i + 1];
+    if (!Motor.andou(a, b) && Motor.setorDe(a) !== Motor.setorDe(b))
+      out.push({no: Motor.noDoEstado(a), rampa: D._rampa.has(Motor.noDoEstado(a))});
+  }
+  return out;
+};
+
+/* a malha tem 10.000 trechos na área ampliada; desenhar os que estão fora da
+ * moldura só custa DOM */
+const naMoldura = (g, c) => {
+  let O = 180, L = -180, S = 90, N = -90;
+  for (const p of g) {
+    if (p[0] < O) O = p[0]; if (p[0] > L) L = p[0];
+    if (p[1] < S) S = p[1]; if (p[1] > N) N = p[1];
+  }
+  return L >= c[0] && O <= c[2] && N >= c[1] && S <= c[3];
+};
+
+/* ---------- mapa de verdade, quando dá ----------
+ *
+ * Fora do Claude a página carrega o Leaflet e o tile do OpenStreetMap, e aí o
+ * mapa arrasta, dá zoom e responde ao mouse. Dentro do Artifact a política de
+ * segurança bloqueia buscar imagem de servidor externo, então cai no mapa
+ * desenhado em SVG logo abaixo — a mesma rota, a mesma medida, sem tile. */
+const COM_LEAFLET = typeof L !== "undefined";
+const cor = nome => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+let mapa = null, pintado = null;
+
+function abrirMapa() {
+  // a altura vai no elemento ANTES de criar o mapa: o Leaflet mede o contêiner
+  // uma vez, e se a regra de altura só chegar depois (ela vem da classe que ele
+  // mesmo adiciona) ele nasce com tamanho zero e todo fitBounds sai errado
+  const cx = $("#mapa");
+  cx.style.height = "520px";
+  mapa = L.map(cx, {zoomControl: true, minZoom: 12, maxZoom: 19, maxBoundsViscosity: 1});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: 'ruas e prédios © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · calçadas: GeoSampa'
+  }).addTo(mapa);
+  const c = [[D.bbox[1], D.bbox[0]], [D.bbox[3], D.bbox[2]]];
+  mapa.setMaxBounds([[c[0][0] - 0.02, c[0][1] - 0.02], [c[1][0] + 0.02, c[1][1] + 0.02]]);
+  mapa.invalidateSize();
+  // `animate: false` não é preferência: o enquadramento da rota vem logo depois
+  // deste, no mesmo tique, e duas animações de zoom sobrepostas se cancelam — o
+  // mapa ficava parado na área inteira, com a rota do tamanho de um fio
+  mapa.fitBounds(c, {animate: false});
+}
+
+const paraLatLng = coords => coords.map(p => [p[1], p[0]]);
+
+function desenharNoMapa(comum, nossa, pontos) {
+  if (!mapa) abrirMapa();
+  if (pintado) mapa.removeLayer(pintado);
+  pintado = L.layerGroup().addTo(mapa);
+  const caixa = [];
+  const cabe = p => caixa.push([p[1], p[0]]);
+
+  for (const pq of (D.parques || []))
+    L.polygon(paraLatLng(pq.g), {color: cor("--praca-borda"), weight: 1, fillColor: cor("--praca"),
+      fillOpacity: .5, interactive: !!pq.nome})
+      .bindTooltip(pq.nome || "praça").addTo(pintado);
+
+  if (comum) for (const t of trechosDe(comum)) {
+    L.polyline(paraLatLng(D.geo[t.t]), {color: cor("--asfalto"), weight: 5, opacity: .55,
+      dashArray: "2 8", interactive: false}).addTo(pintado);
+    for (const p of D.geo[t.t]) cabe(p);
+  }
+  if (nossa) for (const t of trechosDe(nossa)) {
+    const a = D.arestas[t.t], livre = a[3 + t.lado];
+    const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
+    L.polyline(paraLatLng(D.geo[t.t]), {color: fora ? cor("--fora") : cor("--copa"), weight: 6.5})
+      .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
+        + (livre === null ? "largura não cadastrada"
+           : `faixa livre ${num(livre, 2)} m${fora ? " — abaixo de 1,20 m" : ""}`)
+        + `<br>nota de passeio ${num(a[6], 2)}`, {sticky: true}).addTo(pintado);
+    for (const p of D.geo[t.t]) cabe(p);
+  }
+  if (nossa) for (const tv of travessiasDe(nossa)) {
+    if (tv.rampa) continue;
+    L.circleMarker([D.nos[tv.no][1], D.nos[tv.no][0]], {radius: 5, color: cor("--painel"),
+      weight: 1.5, fillColor: cor("--fora"), fillOpacity: 1})
+      .bindTooltip("travessia sem rebaixamento de guia mapeado").addTo(pintado);
+  }
+  for (const pt of pontos || []) {
+    const [no, c, rot, endereco, recuo] = pt;
+    const centro = [D.nos[no][1], D.nos[no][0]];
+    if (endereco && recuo > 25) {
+      L.polyline([[endereco[1], endereco[0]], centro], {color: cor("--tinta3"), weight: 2,
+        dashArray: "3 5", interactive: false}).addTo(pintado);
+      L.circleMarker([endereco[1], endereco[0]], {radius: 5, color: c, weight: 2.5, fillOpacity: 0})
+        .bindTooltip(`${rot} — o endereço, a ${recuo} m do cruzamento`).addTo(pintado);
+      cabe(endereco);
+    }
+    L.circleMarker(centro, {radius: 7, color: cor("--painel"), weight: 2.5, fillColor: c,
+      fillOpacity: 1}).bindTooltip(rot).addTo(pintado);
+    cabe(D.nos[no]);
+  }
+  if (caixa.length) mapa.fitBounds(caixa, {padding: [30, 30], animate: false});
+}
+
+function desenhar(comum, nossa, pontos) {
+  if (COM_LEAFLET) return desenharNoMapa(comum, nossa, pontos);
+  const W = 720, H = 470;
+  const caixa = encherOQuadro(caixaDe([comum, nossa].filter(Boolean), pontos), W, H, 16);
+  const f = projetor(W, H, 16, caixa);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa comparando a rota mais curta e a que o app sugere">`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--quadra)"/>`;
+  let agua = "";
+  for (const g of AGUA) if (naMoldura(g, caixa)) agua += `<path d="${linha(g, f)}Z"/>`;
+  if (agua) s += `<g fill="var(--agua)" stroke="var(--agua)" stroke-width="2">${agua}</g>`;
+  for (const pq of (D.parques || [])) {
+    if (!naMoldura(pq.g, caixa)) continue;
+    s += `<path d="${linha(pq.g, f)}Z" fill="var(--praca)" stroke="var(--praca-borda)"
+           stroke-width="1"><title>${pq.nome || "praça"}</title></path>`;
+  }
+  /* Os 34.810 prédios inteiros desenham em torno de 300 ms, então a camada não
+   * precisa de nível de detalhe. O teto é só válvula de segurança para o dia em
+   * que a área crescer de novo. */
+  const cabemPredios = [];
+  for (const g of PREDIOS) {
+    if (!naMoldura(g, caixa)) continue;
+    if (cabemPredios.length > 40000) { cabemPredios.length = 0; break; }
+    cabemPredios.push(g);
+  }
+  if (cabemPredios.length) {
+    s += `<g fill="var(--predio)" stroke="var(--predio-borda)" stroke-width=".5">`;
+    for (const g of cabemPredios) s += `<path d="${linha(g, f)}Z"/>`;
+    s += `</g>`;
+  }
+  const porClasse = TRACO.map(() => "");
+  for (let i = 0; i < D.geo.length; i++) {
+    if (!naMoldura(D.geo[i], caixa)) continue;
+    porClasse[D.arestas[i][10] || 2] += `<path d="${linha(D.geo[i], f)}"/>`;
+  }
+  porClasse.forEach((d, c) => { if (d)
+    s += `<g stroke="var(--guia)" stroke-width="${TRACO[c]}" fill="none"
+           stroke-linecap="round">${d}</g>`; });
+  if (comum) {
+    s += `<g fill="none" stroke="var(--asfalto)" stroke-width="6" stroke-linecap="round"
+           stroke-linejoin="round" opacity=".65" stroke-dasharray="2 7">`;
+    for (const t of trechosDe(comum)) s += `<path d="${linha(D.geo[t.t], f)}"/>`;
+    s += `</g>`;
+  }
+  if (nossa) {
+    s += `<g fill="none" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">`;
+    for (const t of trechosDe(nossa)) {
+      const livre = D.arestas[t.t][3 + t.lado];
+      const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
+      s += `<path d="${linha(D.geo[t.t], f)}" stroke="${fora ? "var(--fora)" : "var(--copa)"}"/>`;
+    }
+    s += `</g>`;
+    for (const tv of travessiasDe(nossa)) {
+      const [x, y] = f(D.nos[tv.no][0], D.nos[tv.no][1]);
+      if (tv.rampa) continue;
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="var(--fora)"
+             stroke="var(--painel)" stroke-width="1.4"><title>travessia sem rebaixamento mapeado</title></circle>`;
+    }
+  }
+  for (const pt of pontos || []) {
+    const [no, cor, rot, alvo, recuo] = pt;
+    const [x, y] = f(D.nos[no][0], D.nos[no][1]);
+    if (alvo && recuo > 25) {
+      // a porta e o trecho a pé até o cruzamento onde a rota começa
+      const [ax, ay] = f(alvo[0], alvo[1]);
+      s += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}"
+             stroke="var(--tinta3)" stroke-width="1.6" stroke-dasharray="3 4" fill="none"/>`;
+      s += `<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="4.5" fill="none"
+             stroke="${cor}" stroke-width="2.4"><title>${rot} — o endereço</title></circle>`;
+    }
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${cor}"
+           stroke="var(--painel)" stroke-width="2.4"><title>${rot}${
+             recuo > 25 ? ` — a rota começa neste cruzamento, a ${recuo} m` : ""}</title></circle>`;
+  }
+  s += `</svg>`;
+  $("#mapa").innerHTML = s;
+}
+
+/* ---------- veredito ----------
+ *
+ * As marcas de ganho e perda vêm do PLACAR DO MOTOR, não de uma comparação
+ * refeita aqui: é o mesmo placar que escolheu a rota. Empate agora é neutro —
+ * pintar de verde o que só empatou dava vitória de graça. */
+/* A volta circular não tem contra o que competir: a volta "mais curta" com o
+ * mesmo alvo de tempo é outra caminhada, por outras ruas. Comparar as duas mede
+ * acaso. Aqui a ficha mostra o que a volta É. */
+function fichaDaVolta(v, min) {
+  const md = mediasDe(v.caminho);
+  const r = Motor.resumir(v.caminho);
+  const linhas = [
+    ["distância", num(r.distancia_m) + " m"],
+    ["tempo a pé", num(r.minutos) + " min, para " + min + " pedidos"],
+    ["metros fora da norma", pct(r.pct_ruim)],
+    ["pior faixa livre", metros(r.pior_livre_m)],
+    ["travessias sem rampa", r.sem_rampa + " de " + r.travessias],
+    ["nota de passeio", num(r.nota, 2)],
+    ["sombra ao longo do trajeto", num(md.sombra, 2)],
+    ["proximidade de praça", num(md.parque, 2) + (md.toca ? ` · ${md.toca} trecho${md.toca > 1 ? "s" : ""} colado numa` : "")],
+    ["trajeto repetido na volta", pct(100 * v.repetido)],
+  ];
+  $("#cabeca-placar").innerHTML =
+    `<tr><th>medida</th><th class="cabeca-nossa">a volta que o app deu</th></tr>`;
+  $("#placar").innerHTML = linhas.map(([rot, a]) => `
+    <tr><td>${rot}</td><td class="n nossa">${a}</td></tr>`).join("");
+  $("#nota-veredito").innerHTML = `<b>Aqui não há rota mais curta para comparar.</b> Quem pede
+    "me dá uma volta de ${min} minutos" não tem destino, e a volta curta com o mesmo alvo de tempo é
+    outra caminhada por outras ruas — o placar entre as duas mediria acaso, não decisão. O que a
+    preferência muda dá para ver trocando entre <i>equilibrada</i>, <i>mais sombra</i> e
+    <i>praças e parques</i> com o mesmo tempo.`;
+}
+
+function placar(esc) {
+  const c = esc.curta, n = esc.nossa;
+  $("#cabeca-placar").innerHTML =
+    `<tr><th>medida</th><th class="cabeca-comum">mais curta</th><th class="cabeca-nossa">nossa</th></tr>`;
+  const marca = rot => n.ganha.indexOf(rot) >= 0 ? true
+                     : n.perde.indexOf(rot) >= 0 ? false : null;
+  const linhas = [
+    ["distância", num(c.distancia_m) + " m", num(n.distancia_m) + " m", null],
+    ["tempo a pé", num(c.minutos) + " min", num(n.minutos) + " min", null],
+    ["metros fora da norma", pct(c.pct_ruim), pct(n.pct_ruim), marca("metros fora da norma")],
+    ["pior faixa livre", metros(c.pior_livre_m), metros(n.pior_livre_m), marca("pior faixa livre")],
+    ["travessias sem rampa", c.sem_rampa, n.sem_rampa, marca("travessias sem rampa")],
+    ["nota de passeio", num(c.nota, 2), num(n.nota, 2), marca("nota de passeio")],
+  ];
+  $("#placar").innerHTML = linhas.map(([rot, a, b, bom]) => `
+    <tr><td>${rot}</td><td class="n">${a}</td>
+    <td class="n ${bom === false ? "ruim" : bom === true ? "nossa" : ""}">${b}</td></tr>`).join("");
+  $("#nota-veredito").innerHTML = vereditoEmPalavras(esc);
+}
+
+const emLista = xs => xs.length < 2 ? (xs[0] || "")
+  : xs.slice(0, -1).join(", ") + " e " + xs[xs.length - 1];
+
+function vereditoEmPalavras(esc) {
+  const n = esc.nossa, folga = Math.round(esc.folgaMin);
+  if (esc.aMaisCurtaVenceu || !n.ganha.length)
+    return `<b>A rota mais curta já é a melhor aqui.</b> Dentro do orçamento de +${folga} min nenhuma
+      alternativa ganhou mais indicadores do que perdeu, então o app entrega a mesma rota que um mapa
+      comum — e diz isso, em vez de inventar um desvio para justificar a própria existência.`;
+  const mais = esc.minutosAMais;
+  const tempo = mais < 0.5 ? "sem custar tempo nenhum" : `por ${num(mais, 1)} min a mais`;
+  return `<b>Leitura escolhida: ${n.rotulo}.</b> Ganha em ${emLista(n.ganha)} ${tempo}` + (
+    n.perde.length
+      ? `, e abre mão de ${emLista(n.perde)}: ganhar também esse indicador estouraria o orçamento
+         de +${folga} min. Arraste o controle de tempo para ver o que mais um minuto compra.`
+      : `, sem perder em nenhum indicador.`);
+}
+
+/* O grafo do piloto liga cruzamentos, não portas. Quando o endereço pedido está
+ * longe do cruzamento mais próximo, a diferença é dita — é ela que explica o
+ * traço pontilhado no mapa. */
+const recuoEmPalavras = p => p.recuo > 25
+  ? ` · ${p.recuo} m a pé da ${p.nome.replace(/^(Praça|Metrô|Largo|Beco) /, "")} até o cruzamento`
+  : "";
+
+/* ---------- traçar ---------- */
+let modo = "volta";
+let pref = "passeio";
+$("#m-volta").onclick = () => trocarModo("volta");
+$("#m-ate").onclick = () => trocarModo("ate");
+function trocarModo(m) {
+  modo = m;
+  $("#m-volta").setAttribute("aria-pressed", m === "volta");
+  $("#m-ate").setAttribute("aria-pressed", m === "ate");
+  $("#campo-destino").hidden = m === "volta";
+  $("#campo-min").hidden = m !== "volta";
+  // sem comparação não há orçamento de tempo a gastar
+  $("#campo-folga").hidden = m === "volta";
+}
+document.querySelector("#campo-pref .modos").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  pref = b.dataset.pref;
+  document.querySelectorAll("#campo-pref button").forEach(x =>
+    x.setAttribute("aria-pressed", x.dataset.pref === pref));
+  tracar();
+};
+$("#minutos").oninput = e => { $("#saida-min").textContent = e.target.value + " min"; };
+$("#folga").oninput = e => { $("#saida-folga").textContent = "+" + e.target.value + " min"; };
+$("#folga").onchange = () => tracar();
+
+$("#tracar").onclick = () => {
+  const b = $("#tracar"); b.disabled = true; b.textContent = "calculando…";
+  setTimeout(() => { try { tracar(); } finally { b.disabled = false; b.textContent = "traçar"; } }, 15);
+};
+
+function tracar() {
+  const o = PONTOS[+$("#origem").value];
+  const folgaMin = +$("#folga").value;
+  if (modo === "volta") {
+    const min = +$("#minutos").value;
+    const v = Motor.rotaCircular(o.no, min, {modo: pref});
+    if (!v) return semRota();
+    desenhar(null, v.caminho, [[o.no, "var(--copa)", o.nome, o.alvo, o.recuo]]);
+    $("#titulo-veredito").textContent = `Volta de ${min} minutos · ${ROTULO_PREF[pref]}`;
+    $("#onde-veredito").textContent =
+      `saindo da ${o.nome} · entregue em ${Math.round(v.minutos)} min` + recuoEmPalavras(o);
+    fichaDaVolta(v, min);
+    falar(v.caminho);
+  } else {
+    const d = PONTOS[+$("#destino").value];
+    if (d.no === o.no) return semRota();
+    const esc = Motor.escolherRota(o.no, d.no, pref, {folgaMin});
+    if (!esc) return semRota();
+    desenhar(esc.curta.caminho, esc.nossa.caminho,
+             [[o.no, "var(--copa)", o.nome, o.alvo, o.recuo],
+              [d.no, "var(--tinta)", d.nome, d.alvo, d.recuo]]);
+    $("#titulo-veredito").textContent = `${o.nome} → ${d.nome}`;
+    $("#onde-veredito").textContent = `${Math.round(esc.nossa.minutos)} min a pé com carrinho`
+      + recuoEmPalavras(o) + recuoEmPalavras(d);
+    placar(esc);
+    falar(esc.nossa.caminho);
+  }
+}
+function semRota() {
+  $("#titulo-veredito").textContent = "Sem rota entre esses dois pontos";
+  $("#onde-veredito").textContent = "escolha outra origem ou outro destino";
+  $("#placar").innerHTML = ""; $("#caixa-fala").hidden = true;
+}
+function falar(caminho) {
+  const passos = Motor.instrucoes(caminho) || [];
+  if (!passos.length) { $("#caixa-fala").hidden = true; return; }
+  $("#caixa-fala").hidden = false;
+  $("#fala").innerHTML = passos.slice(0, 10).map(frase).join("");
+}
+
+/* O motor devolve o passo em campos; a fala é montada aqui, do jeito que uma
+ * pessoa empurrando carrinho quer ouvir: a rua, quanto falta, e o aviso. */
+function frase(p) {
+  if (typeof p === "string") return `<li>${p}</li>`;
+  const rua = p.rua && p.rua !== "via sem nome" ? p.rua : "a via sem nome";
+  const largura = p.livre_m != null
+    ? ` <span class="mono" style="color:${p.livre_m < K.FAIXA_LIVRE_MIN_M
+        ? "var(--fora)" : "var(--tinta3)"}">faixa livre ${num(p.livre_m, 2)} m</span>` : "";
+  const semRampa = p.rampa === false
+    ? ` <span class="mono" style="color:var(--fora)">sem rebaixamento de guia</span>` : "";
+  if (p.tipo === "siga")
+    return `<li>Siga pela ${rua} por ${num(p.metros)} m ·${largura}</li>`;
+  if (p.tipo === "mudar_lado")
+    return `<li>Troque para a calçada do outro lado da ${rua} ·${semRampa || " a travessia tem rampa"}</li>`;
+  if (p.tipo === "cruzar")
+    return `<li>Atravesse a ${rua} ·${semRampa || " a travessia tem rampa"}</li>`;
+  if (p.tipo === "chegou") return `<li>Chegou.</li>`;
+  return `<li>${p.tipo} ${rua}</li>`;
+}
+
+/* ---------- bateria ---------- */
+const ROTULO_PREF = {passeio: "equilibrada", sombra: "mais sombra", parque: "praças"};
+const PROVAS = [];
+/* O cruzamento que interessa: a MESMA volta pedida de três jeitos. */
+[0, 3, 9].forEach(i => ["passeio", "sombra", "parque"].forEach(pf =>
+  PROVAS.push({tipo: "volta", o: i, min: 20, pref: pf})));
+[0, 4].forEach(i => ["passeio", "sombra", "parque"].forEach(pf =>
+  PROVAS.push({tipo: "volta", o: i, min: 40, pref: pf})));
+/* Os pares atravessam o recorte inteiro: Sumarezinho no norte, Vila Madalena no
+ * meio, Pinheiros e o Largo da Batata no sul, a Praça do Pôr do Sol no oeste e a
+ * Benedito Calixto no leste — que é o lugar que o piloto cortava fora. */
+[[0,2],[0,1],[0,3],[0,4],[0,6],[9,1],[1,4],[3,9],[5,3],[2,6],[4,7],[8,1],[9,8],[6,4]]
+  .forEach(([a, b]) => PROVAS.push({tipo: "ate", o: a, d: b}));
+
+$("#rodar").onclick = () => {
+  const b = $("#rodar"); b.disabled = true;
+  $("#provas").innerHTML = "";
+  const folgaMin = +$("#folga").value;
+  const acc = [];
+  let i = 0;
+  const passo = () => {
+    if (i >= PROVAS.length) {
+      b.disabled = false; b.textContent = "rodar de novo"; resumir(acc); return;
+    }
+    b.textContent = `rodando ${i + 1} de ${PROVAS.length}…`;
+    const p = PROVAS[i++];
+    const o = PONTOS[p.o];
+    const pf = p.pref || "passeio";
+    /* Volta e trajeto são medidos diferente de propósito: a volta não tem
+     * contra o que competir, então as colunas de placar ficam vazias nela. */
+    let reg;
+    if (p.tipo === "volta") {
+      const v = Motor.rotaCircular(o.no, p.min, {modo: pf});
+      if (!v) { setTimeout(passo, 0); return; }
+      const r = Motor.resumir(v.caminho), md = mediasDe(v.caminho);
+      reg = {volta: true, rotulo: `volta de ${p.min} min · ${ROTULO_PREF[pf]} · ${o.nome}`,
+        leitura: `${Math.round(r.minutos)} min para ${p.min} pedidos`,
+        m: r.distancia_m, mais: 0, sombra: md.sombra, praca: md.parque, toca: md.toca,
+        fora: r.pct_ruim, pior: r.pior_livre_m, semRampa: r.sem_rampa, travessias: r.travessias,
+        nota: r.nota, ganha: [], perde: [], curtaVenceu: false};
+    } else {
+      const esc = Motor.escolherRota(o.no, PONTOS[p.d].no, pf, {folgaMin});
+      if (!esc) { setTimeout(passo, 0); return; }
+      const n = esc.nossa, c = esc.curta, md = mediasDe(n.caminho);
+      reg = {volta: false, rotulo: `${o.nome} → ${PONTOS[p.d].nome}`, leitura: n.rotulo,
+        m: n.distancia_m, mais: esc.minutosAMais, sombra: md.sombra, praca: md.parque, toca: md.toca,
+        fora: n.pct_ruim, foraC: c.pct_ruim, pior: n.pior_livre_m, piorC: c.piorC || c.pior_livre_m,
+        semRampa: n.sem_rampa, semRampaC: c.sem_rampa, nota: n.nota, notaC: c.nota,
+        ganha: n.ganha, perde: n.perde, curtaVenceu: esc.aMaisCurtaVenceu};
+    }
+    acc.push(reg);
+    const marca = (v, bom) => `<td class="${bom === false ? "pior" : bom === true ? "melhor" : ""}">${v}</td>`;
+    const tem = (lista, rot) => lista.indexOf(rot) >= 0;
+    const g = rot => tem(reg.ganha, rot) ? true : tem(reg.perde, rot) ? false : null;
+    $("#provas").insertAdjacentHTML("beforeend", `<tr>
+      <td>${reg.rotulo}</td>
+      <td class="leitura">${reg.curtaVenceu ? "a mais curta já era a melhor" : reg.leitura}</td>
+      <td>${num(reg.m)}</td>
+      <td>${reg.volta ? "—" : (reg.mais > 0.05 ? "+" : "") + num(reg.mais, 1) + " min"}</td>
+      ${marca(pct(reg.fora), g("metros fora da norma"))}
+      ${marca(metros(reg.pior), g("pior faixa livre"))}
+      ${marca(reg.semRampa + " de " + (reg.volta ? reg.travessias : reg.semRampaC),
+              g("travessias sem rampa"))}
+      ${marca(num(reg.nota, 2), g("nota de passeio"))}
+      <td class="${reg.volta ? "" : reg.perde.length ? "" : "melhor"}">${
+        reg.volta ? `sombra ${num(reg.sombra, 2)} · praça ${num(reg.praca, 2)}`
+        : reg.curtaVenceu ? "empata"
+        : reg.ganha.length + " de 4" + (reg.perde.length ? ", abre mão de " + reg.perde.length : "")}</td>
+    </tr>`);
+    setTimeout(passo, 0);
+  };
+  passo();
+};
+
+function resumir(acc) {
+  if (!acc.length) return;
+  const mediana = xs => { const s = [...xs].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)]; };
+  const ab = acc.filter(r => !r.volta), voltas = acc.filter(r => r.volta);
+  const ganhaTudo = ab.filter(r => !r.perde.length && r.ganha.length).length;
+  const curtaVenceu = ab.filter(r => r.curtaVenceu).length;
+  const abandonados = ab.reduce((t, r) => t + r.perde.length, 0);
+  const dentro = ab.filter(r => (r.pior || 0) >= K.FAIXA_LIVRE_MIN_M).length;
+  const dentroC = ab.filter(r => (r.piorC || 0) >= K.FAIXA_LIVRE_MIN_M).length;
+  const rampa = ab.filter(r => r.semRampa <= r.semRampaC).length;
+  const porPref = (p, campo) => {
+    const xs = voltas.filter(r => r.rotulo.indexOf("· " + p + " ·") >= 0);
+    return xs.length ? mediana(xs.map(r => r[campo])) : null;
+  };
+  const so = porPref("mais sombra", "sombra"), soEq = porPref("equilibrada", "sombra");
+  const pa = porPref("praças", "praca"), paEq = porPref("equilibrada", "praca");
+  $("#resumo").hidden = false;
+  $("#resumo").innerHTML = `
+    <div><dt>ganha em tudo</dt><dd>${ganhaTudo} de ${ab.length}</dd>
+      <small>trajetos que não perdem em nenhum dos quatro indicadores</small></div>
+    <div><dt>a mais curta venceu</dt><dd>${curtaVenceu} de ${ab.length}</dd>
+      <small>o app entrega a rota comum e diz por quê</small></div>
+    <div><dt>tempo a mais</dt><dd>+${num(mediana(ab.map(r => r.mais)), 1)} min</dd>
+      <small>mediana; teto de +${$("#folga").value} min por escolha sua</small></div>
+    <div><dt>indicadores abandonados</dt><dd>${abandonados}</dd>
+      <small>de ${4 * ab.length} disputados nos ${ab.length} trajetos</small></div>
+    <div><dt>gargalo dentro da norma</dt><dd>${dentro} de ${ab.length}</dd>
+      <small>contra ${dentroC} das rotas mais curtas</small></div>
+    <div><dt>travessias sem rampa</dt><dd>${rampa} de ${ab.length}</dd>
+      <small>trajetos com menos degraus que a mais curta, ou empatados</small></div>
+    ${so != null ? `<div><dt>volta pedindo sombra</dt><dd>${num(so, 2)}</dd>
+      <small>sombra média, contra ${num(soEq, 2)} na equilibrada</small></div>` : ""}
+    ${pa != null ? `<div><dt>volta pedindo praças</dt><dd>${num(pa, 2)}</dd>
+      <small>proximidade de praça, contra ${num(paEq, 2)} na equilibrada</small></div>` : ""}
+    <div><dt>voltas fora da norma</dt><dd>${voltas.filter(r => r.fora > 0).length} de ${voltas.length}</dd>
+      <small>voltas que encostam em calçada abaixo de 1,20 m</small></div>`;
+}
+
+/* Abre com um trajeto já traçado, para a página mostrar o que faz antes de
+ * qualquer clique — e com um caso representativo da bateria (+25% de nota,
+ * 0,3% fora da norma), não com o melhor nem com o pior. */
+trocarModo("ate");
+$("#destino").value = 3;   /* Largo da Batata */
+tracar();
+</script>
+
+</body>
+</html>
