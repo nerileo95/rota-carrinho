@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Rotas de calçada para quem empurra carrinho de bebê, em Pinheiros, Vila Madalena e Sumarezinho.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%9A%B6%3C/text%3E%3C/svg%3E">
-<title>Banco de Provas da Rota</title>
+<title>Análise de rotas acessíveis para carrinhos de bebê em São Paulo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -83,9 +83,8 @@ h1,h2{margin:0; text-wrap:balance}
 .folha{max-width:1180px; margin:0 auto; padding:26px 20px 52px}
 
 /* ---------- cabeçalho ---------- */
-.selo{font:600 10px/1 "IBM Plex Mono",monospace; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--tinta3)}
-h1{font-size:clamp(23px,3vw,31px); font-weight:700; letter-spacing:-.024em; margin:11px 0 8px}
+h1{font-size:clamp(23px,3vw,31px); font-weight:700; letter-spacing:-.024em; margin:0 0 8px;
+  text-wrap:balance; max-width:26ch}
 .chamada{color:var(--tinta2); max-width:66ch; margin:0 0 16px; font-size:14.5px}
 .normas{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:22px}
 .norma{font:500 11.5px/1 "IBM Plex Mono",monospace; color:var(--tinta2);
@@ -233,7 +232,12 @@ td.pior{color:var(--fora)}
 
 footer{margin-top:34px; padding-top:18px; border-top:1px solid var(--guia);
   color:var(--tinta3); font-size:12.5px}
-footer p{max-width:78ch; margin:0 0 8px}
+footer p{margin:0 0 10px}
+/* Em duas colunas: numa só, o rodapé virava uma tira estreita com metade da
+   largura da página vazia ao lado. */
+.notas{columns:2; column-gap:42px}
+.notas p{break-inside:avoid}
+@media (max-width:820px){ .notas{columns:1} }
 footer b{color:var(--tinta2)}
 @media (prefers-reduced-motion:no-preference){ .tracar,.rodar,.modos button{transition:opacity .12s ease} }
 </style>
@@ -243,20 +247,9 @@ footer b{color:var(--tinta2)}
 
 <div class="folha">
 <header>
-  <p class="selo">Pinheiros · Vila Madalena · Sumarezinho · 10.000 trechos</p>
-  <h1>Banco de Provas da Rota</h1>
-  <p class="chamada">O motor de rotas para quem empurra carrinho, rodando no seu navegador. Cada
-  trajeto é calculado <b>treze vezes sobre o mesmo grafo</b>: a rota mais curta, que é o que um mapa
-  comum entrega, e doze leituras diferentes do que "melhor" quer dizer. Todas são medidas pela mesma
-  régua — metros fora da norma, pior faixa livre, travessias sem rebaixamento de guia e nota de
-  passeio — e o app entrega <b>a que ganha em mais indicadores sem estourar o tempo que você aceita
-  andar a mais</b>. Quando nenhuma compensa, ele entrega a própria rota mais curta e diz isso.</p>
-  <p class="chamada">Na tela ficam só as duas perguntas que a pessoa tem na cabeça: dar uma volta,
-  ou ir até. O resto — quanto tempo a mais você aceita, o que priorizar no caminho e a largura do
-  seu carrinho — vive atrás do botão de ajustes, porque é escolha que se faz uma vez.</p>
-  <p class="chamada" style="margin-top:.7rem">A área de amostra é <b>Pinheiros, Vila Madalena e
-  Sumarezinho inteiros</b> — 14,3 km², 10.000 trechos de rua e 8.659 trechos de calçada cadastrados.
-  O recorte anterior tinha 3,9 km² e cortava fora a Praça Benedito Calixto.</p>
+  <h1>Análise de rotas acessíveis para carrinhos de bebê em São Paulo</h1>
+  <p class="chamada">A área de amostra é <b>Pinheiros, Vila Madalena e Sumarezinho inteiros</b>:
+  14,3 km², 10.000 trechos de rua e 8.659 trechos de calçada cadastrados.</p>
   <div class="normas">
     <span class="norma">faixa livre ≥ 1,20 m · Decreto 59.671/2020</span>
     <span class="norma">declividade ≤ 8,33% · NBR 9050</span>
@@ -322,9 +315,9 @@ footer b{color:var(--tinta2)}
     <div class="grupo">
       <label for="bloqueio">Largura do seu carrinho</label>
       <select id="bloqueio">
-        <option value="0.60">compacto — 0,60 m</option>
-        <option value="0.75">comum — 0,75 m</option>
-        <option value="0.90">duplo ou gêmeos — 0,90 m</option>
+        <option value="0.60">compacto, 0,60 m</option>
+        <option value="0.75">comum, 0,75 m</option>
+        <option value="0.90">duplo ou gêmeos, 0,90 m</option>
       </select>
       <p class="dica" id="dica-largura">Calçada mais estreita que isso sai do mapa: não é
       um caminho ruim, é um caminho por onde o carrinho não passa.</p>
@@ -355,7 +348,7 @@ footer b{color:var(--tinta2)}
       <tbody id="placar"></tbody>
     </table>
     <p class="nota-veredito" id="nota-veredito">A nota de passeio soma sombra, iluminação, largura
-    livre e terreno plano. O peso que a usa carrega a penalidade da norma — sem isso o motor comprava
+    livre e terreno plano. O peso que a usa carrega a penalidade da norma; sem isso o motor comprava
     sombra com calçada estreita.</p>
   </div>
 </div>
@@ -370,11 +363,11 @@ footer b{color:var(--tinta2)}
     <h2>Bateria de provas</h2>
     <button class="rodar" id="rodar">rodar as 29 rotas</button>
   </div>
-  <p>Quinze voltas circulares — cada origem pedida de três jeitos, para ver a preferência mudar o
-  trajeto — e quatorze trajetos ponto a ponto que cruzam o recorte inteiro, a maioria saindo da
+  <p>Quinze voltas circulares, cada origem pedida de três jeitos para ver a preferência mudar o
+  trajeto, e quatorze trajetos ponto a ponto que cruzam o recorte inteiro, a maioria saindo da
   Rua Harmonia 942. Nos trajetos, cada linha mostra qual leitura venceu, quanto tempo a mais custou
   e o placar contra a rota mais curta nos quatro indicadores; roda com o orçamento de tempo que
-  estiver no controle acima — vale rodar com +0 e com +5 min para ver o que o minuto extra compra.
+  estiver no controle acima; vale rodar com +0 e com +5 min para ver o que o minuto extra compra.
   Nas voltas não há placar, porque não há do que comparar: a última coluna mostra sombra e
   proximidade de praça, que é o que a preferência muda.</p>
   <div class="rolo">
@@ -391,52 +384,48 @@ footer b{color:var(--tinta2)}
 </section>
 
 <footer>
+  <div class="notas">
   <p><b>Como ler.</b> "Fora da norma" é a fração do trajeto sobre calçada com faixa livre abaixo de
   1,20 m, já descontando 0,70 m onde há árvore ou poste plantado dentro dela. "Pior faixa livre" é o
-  gargalo do trajeto — é ele que decide se o carrinho passa. "Sem rampa" conta as travessias em
-  cruzamento sem rebaixamento de guia mapeado. A coluna "placar" conta em quantos dos quatro indicadores a rota
-  escolhida ganha da mais curta, e quantos ela abandonou para caber no orçamento de tempo — empate
-  não conta para nenhum dos dois lados.</p>
-  <p><b>O que este banco não vê.</b> Só 10% dos cruzamentos têm rebaixamento mapeado: o motor
-  penaliza atravessar onde não há, mas não pode proibir. A nota de passeio nunca foi validada com um
-  pai ou uma mãe — os pesos são plausíveis, não testados, e essa é a primeira pergunta do co-design.
-  Esquerda e direita são geométricas, não correspondem a par e ímpar.</p>
+  gargalo do trajeto, e é ele que decide se o carrinho passa. "Sem rampa" conta as travessias em
+  cruzamento sem rebaixamento de guia mapeado. A coluna "placar" diz em quantos dos quatro
+  indicadores a rota escolhida ganha da mais curta, e de quantos ela abriu mão para caber no
+  orçamento de tempo; empate não conta para nenhum dos dois lados.</p>
+  <p><b>Como a rota é escolhida.</b> O motor gera candidatas com seis calibrações, entre elas evitar
+  degrau, exigir largura e cortar travessia, em dois pesos; descarta as que passam do orçamento de
+  tempo e escolhe pelo saldo de indicadores ganhos menos perdidos. Empate não conta como vitória. A
+  rota mais curta entra na disputa como candidata: se ninguém a supera, ela é a resposta. E quando
+  ganhar em tudo custaria mais tempo do que você deu, a escolhida abre mão de um indicador e o app
+  diz de qual.</p>
   <p><b>Por que a volta não é comparada.</b> Quem pede "me dá uma volta de 20 minutos" não tem
-  destino. A volta mais curta com o mesmo alvo de tempo é outra caminhada, por outras ruas — pôr as
-  duas lado a lado mede acaso, não decisão, e foi por isso que a comparação saiu daqui. O que se vê
-  na volta é o que ela é: quanto anda, quanto repete, quanta sombra, quantas praças encosta e quanto
-  disso fica abaixo da norma.</p>
-  <p><b>Como a rota é escolhida.</b> Um peso só entrega uma rota só, e ela às vezes perdia da mais
-  curta em um indicador — trocava travessia com rampa por sombra e chegava um minuto depois. Agora o
-  motor gera candidatas com seis calibrações (evitar degrau, exigir largura, cortar travessia…) em
-  dois pesos, joga fora as que passam do seu orçamento de tempo e escolhe pelo saldo
-  <i>indicadores ganhos menos perdidos</i>. Empate não conta como vitória. A rota mais curta entra
-  na disputa como candidata: se ninguém a supera, ela é a resposta. E quando ganhar tudo custaria
-  mais tempo do que você deu, a escolhida abre mão de um indicador e o app diz de qual.</p>
+  destino. A volta mais curta com o mesmo alvo de tempo é outra caminhada, por outras ruas, e pôr as
+  duas lado a lado mede acaso, não decisão. O que se vê na volta é o que ela é: quanto anda, quanto
+  repete, quanta sombra, quantas praças encosta e quanto disso fica abaixo da norma.</p>
   <p><b>A rota de comparação.</b> É o mesmo Dijkstra, sobre o mesmo grafo de pedestres do
-  OpenStreetMap, minimizando distância — o objetivo de um mapa de rotas comum. Ela não sabe a
+  OpenStreetMap, minimizando distância, que é o objetivo de um mapa de rotas comum. Ela não sabe a
   largura da calçada, a declividade nem se o cruzamento tem rebaixamento de guia; anda pelos mesmos
-  quarteirões com a informação que um mapa comum tem. Não é uma chamada à API do Google, que a
-  política de segurança desta página bloqueia: é o mesmo algoritmo com o objetivo dela, que é o que
-  torna a comparação justa.</p>
+  quarteirões com a informação que um mapa comum tem. Não é uma chamada à API do Google: é o mesmo
+  algoritmo com o objetivo dela, e é isso que torna a comparação justa.</p>
   <p><b>O ponto de partida.</b> Rua Harmonia 942 é um endereço de verdade dentro da área: está entre
   os 14.017 endereços com número que o OpenStreetMap tem aqui, com o mesmo par de coordenadas que o
-  Nominatim devolve. O trajeto começa no cruzamento mais próximo dele — 49 m a pé, e o mapa desenha
+  Nominatim devolve. O trajeto começa no cruzamento mais próximo dele, a 49 m a pé, e o mapa desenha
   esses metros pontilhados em vez de fingir que a rota nasce na porta.</p>
-  <p id="tem-site" hidden><b>Este app com mapa de verdade.</b> A mesma página, servida fora daqui,
+  <p id="mapa-desenhado" hidden><b>O mapa.</b> É desenhado a partir da geometria do OpenStreetMap:
+  34.830 prédios, a água, as praças e as 10.000 linhas de via, com a espessura do traço vinda da
+  hierarquia da via. Os prédios somem quando o enquadramento fica largo demais para eles fazerem
+  sentido.</p>
+  <p id="tem-site" hidden><b>Este app com mapa arrastável.</b> A mesma página, servida fora daqui,
   carrega o Leaflet e os tiles do OpenStreetMap: o mapa arrasta, dá zoom e cada trecho da rota
   responde ao mouse com a rua, o lado da calçada e a faixa livre. Está em
   <a href="https://nerileo95.github.io/rota-carrinho/">nerileo95.github.io/rota-carrinho</a>.</p>
-  <p><b>O mapa.</b> Não é imagem de tile — a política de segurança desta página bloqueia buscar
-  imagem de qualquer servidor externo. Ele é desenhado aqui, a partir da geometria de verdade do
-  OpenStreetMap: 34.830 prédios, a água, as praças e as 10.000 linhas de via, com a espessura do
-  traço vinda da hierarquia da via. Os prédios somem sozinhos quando o enquadramento fica largo
-  demais para eles fazerem sentido.</p>
-  <p><b>Fontes.</b> Calçadas, árvores e postes: GeoSampa. Prédios, água, praças, rede caminhável e
-  rebaixamentos de guia: OpenStreetMap. O motor é o mesmo <code>motor.py</code> da POC, portado para o navegador e conferido
-  rota a rota: 100 de 100 com custo idêntico ao Python, em cinco pesos diferentes. O que é do
-  Python é o <i>custo</i> de cada calçada e de cada travessia; a escolha entre as candidatas é
-  camada de produto e vive só aqui no app.</p>
+  <p><b>O que este banco não vê.</b> Só 10% dos cruzamentos têm rebaixamento de guia mapeado: o
+  motor penaliza atravessar onde não há, mas não pode proibir. A nota de passeio nunca foi validada
+  com um pai ou uma mãe: os pesos são plausíveis, não testados, e essa é a primeira pergunta do
+  co-design. Esquerda e direita são geométricas, não correspondem a par e ímpar.</p>
+  <p><b>Fontes.</b> Calçadas, árvores e postes: GeoSampa. Prédios, água, praças, pontos turísticos,
+  rede caminhável e rebaixamentos de guia: OpenStreetMap. Os dois motores, o de referência em Python
+  e o que roda no navegador, são conferidos rota a rota: 102 de 102 com custo idêntico.</p>
+  </div>
 </footer>
 </div>
 
@@ -665,7 +654,7 @@ function desenharNoMapa(comum, nossa, pontos) {
     L.polyline(paraLatLng(D.geo[t.t]), {color: fora ? cor("--mapa-alerta") : cor("--mapa-nossa"), weight: 6.5})
       .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
         + (livre === null ? "largura não cadastrada"
-           : `faixa livre ${num(livre, 2)} m${fora ? " — abaixo de 1,20 m" : ""}`)
+           : `faixa livre ${num(livre, 2)} m${fora ? ", abaixo de 1,20 m" : ""}`)
         + `<br>nota de passeio ${num(a[6], 2)}`, {sticky: true}).addTo(pintado);
     for (const p of D.geo[t.t]) cabe(p);
   }
@@ -682,7 +671,7 @@ function desenharNoMapa(comum, nossa, pontos) {
       L.polyline([[endereco[1], endereco[0]], centro], {color: cor("--mapa-tinta"), weight: 2,
         dashArray: "3 5", interactive: false}).addTo(pintado);
       L.circleMarker([endereco[1], endereco[0]], {radius: 5, color: c, weight: 2.5, fillOpacity: 0})
-        .bindTooltip(`${rot} — o endereço, a ${recuo} m do cruzamento`).addTo(pintado);
+        .bindTooltip(`${rot}: o endereço, a ${recuo} m do cruzamento`).addTo(pintado);
       cabe(endereco);
     }
     L.circleMarker(centro, {radius: 7, color: cor("--mapa-chao"), weight: 2.5, fillColor: c,
@@ -765,11 +754,11 @@ function desenhar(comum, nossa, pontos) {
       s += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}"
              stroke="var(--mapa-tinta)" stroke-width="1.6" stroke-dasharray="3 4" fill="none"/>`;
       s += `<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="4.5" fill="none"
-             stroke="${cor}" stroke-width="2.4"><title>${rot} — o endereço</title></circle>`;
+             stroke="${cor}" stroke-width="2.4"><title>${rot}: o endereço</title></circle>`;
     }
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${cor}"
            stroke="var(--mapa-chao)" stroke-width="2.4"><title>${rot}${
-             recuo > 25 ? ` — a rota começa neste cruzamento, a ${recuo} m` : ""}</title></circle>`;
+             recuo > 25 ? `: a rota começa neste cruzamento, a ${recuo} m` : ""}</title></circle>`;
   }
   s += `</svg>`;
   $("#mapa").innerHTML = s;
@@ -803,7 +792,7 @@ function fichaDaVolta(v, min) {
     <tr><td>${rot}</td><td class="n nossa">${a}</td></tr>`).join("");
   $("#nota-veredito").innerHTML = `<b>Aqui não há rota mais curta para comparar.</b> Quem pede
     "me dá uma volta de ${min} minutos" não tem destino, e a volta curta com o mesmo alvo de tempo é
-    outra caminhada por outras ruas — o placar entre as duas mediria acaso, não decisão. O que a
+    outra caminhada por outras ruas, e o placar entre as duas mediria acaso, não decisão. O que a
     preferência muda dá para ver trocando entre <i>equilibrada</i>, <i>mais sombra</i> e
     <i>praças e parques</i> com o mesmo tempo.`;
 }
@@ -836,7 +825,7 @@ function vereditoEmPalavras(esc) {
   if (esc.aMaisCurtaVenceu || !n.ganha.length)
     return `<b>A rota mais curta já é a melhor aqui.</b> Dentro do orçamento de +${folga} min nenhuma
       alternativa ganhou mais indicadores do que perdeu, então o app entrega a mesma rota que um mapa
-      comum — e diz isso, em vez de inventar um desvio para justificar a própria existência.`;
+      comum, e diz isso em vez de inventar um desvio para justificar a própria existência.`;
   const mais = esc.minutosAMais;
   const tempo = mais < 0.5 ? "sem custar tempo nenhum" : `por ${num(mais, 1)} min a mais`;
   return `<b>Leitura escolhida: ${n.rotulo}.</b> Ganha em ${emLista(n.ganha)} ${tempo}` + (
@@ -1090,7 +1079,14 @@ function resumir(acc) {
  * qualquer clique — e com um caso representativo da bateria (+25% de nota,
  * 0,3% fora da norma), não com o melhor nem com o pior. */
 // o convite para a versão com mapa arrastável só faz sentido onde ela não está
-if (!COM_LEAFLET) $("#tem-site").hidden = false;
+/* Cada build descreve o seu próprio mapa. Dizer "é desenhado aqui" na página
+ * servida fora do Claude, onde o mapa é Leaflet com tile, seria escrever uma
+ * coisa e mostrar outra; e o convite para o site só faz sentido onde ele não
+ * está. Os dois parágrafos são do Artifact, e lá aparecem juntos. */
+if (!COM_LEAFLET) {
+  $("#mapa-desenhado").hidden = false;
+  $("#tem-site").hidden = false;
+}
 $("#bloqueio").onchange();
 trocarModo("ate");
 $("#destino").value = 3;   /* Largo da Batata */
