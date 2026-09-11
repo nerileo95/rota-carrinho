@@ -181,7 +181,14 @@ table.placar td.n.ruim{color:var(--fora)}
 .fala{margin-top:16px; background:var(--painel); border:1px solid var(--guia);
   border-radius:13px; padding:14px 17px; box-shadow:var(--sombra)}
 .fala h2{font-size:14px; font-weight:600; margin-bottom:9px}
-.fala ol{margin:0; padding-left:20px; color:var(--tinta2); font-size:13.5px; line-height:1.7}
+/* A lista inteira cabe aqui rolando: uma volta longa tem quase 60 passos, e
+   cortar em dez era esconder 80% das instruções. */
+/* 30 px, e não 20: com a lista inteira a numeração passa de dez, e o primeiro
+   dígito ficava cortado — "10." aparecia como "9.". */
+.fala ol{margin:0; padding-left:30px; color:var(--tinta2); font-size:13.5px; line-height:1.7;
+  max-height:360px; overflow-y:auto}
+.fala .conta{font:500 11px/1 "IBM Plex Mono",monospace; color:var(--tinta3);
+  letter-spacing:.08em; margin-left:8px}
 .fala li::marker{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--tinta3)}
 
 /* ---------- banco de provas ---------- */
@@ -298,6 +305,14 @@ footer b{color:var(--tinta2)}
       </div>
       <p class="dica">Dá para marcar mais de um. Nenhum marcado é a rota equilibrada.</p>
     </div>
+    <div class="grupo" id="grupo-volta">
+      <label id="rot-circular">Na volta</label>
+      <div class="bandeiras" role="group" aria-labelledby="rot-circular">
+        <label><input type="checkbox" id="sem-repetir" checked>
+          <span>não voltar pelo mesmo lugar</span>
+          <small>dar a volta de verdade, em vez de refazer o caminho de ida</small></label>
+      </div>
+    </div>
     <div class="grupo">
       <label for="bloqueio">Largura do seu carrinho</label>
       <select id="bloqueio">
@@ -340,7 +355,7 @@ footer b{color:var(--tinta2)}
 </div>
 
 <div class="fala" id="caixa-fala" hidden>
-  <h2>O que o app fala no ouvido</h2>
+  <h2>O que o app fala no ouvido <span class="conta" id="conta-fala"></span></h2>
   <ol id="fala"></ol>
 </div>
 
@@ -392,7 +407,7 @@ footer b{color:var(--tinta2)}
 </footer>
 </div>
 
-<script src="motor.js?v=2"></script>
+<script src="motor.js?v=3"></script>
 <script src="dados.js?v=1"></script>
 <script>
 const D = window.__DADOS__;
@@ -741,14 +756,14 @@ function fichaDaVolta(v, min) {
     ["travessias sem rampa", r.sem_rampa + " de " + r.travessias],
     ["nota de passeio", num(r.nota, 2)],
     ["sombra ao longo do trajeto", num(md.sombra, 2)],
-    ["proximidade de praça", num(md.parque, 2) + (md.toca ? ` · ${md.toca} trecho${md.toca > 1 ? "s" : ""} colado numa` : "")],
-    ["trajeto repetido na volta", pct(100 * v.repetido)],
+    ["proximidade de praça", num(md.parque, 2) + (md.toca ? ` · ${md.toca} ${md.toca > 1 ? "trechos colados" : "trecho colado"} numa` : "")],
+    ["trajeto repetido na volta", v.repetido < 0.001 ? "nenhum" : pct(100 * v.repetido)],
   ];
   $("#cabeca-placar").innerHTML =
     `<tr><th>medida</th><th class="cabeca-nossa">a volta que o app deu</th></tr>`;
   $("#placar").innerHTML = linhas.map(([rot, a]) => `
     <tr><td>${rot}</td><td class="n nossa">${a}</td></tr>`).join("");
-  $("#nota-veredito").innerHTML = `<b>Aqui não há rota mais curta para comparar.</b> Quem pede
+  $("#nota-veredito").innerHTML = miraEmPalavras(v, min) + `<b>Aqui não há rota mais curta para comparar.</b> Quem pede
     "me dá uma volta de ${min} minutos" não tem destino, e a volta curta com o mesmo alvo de tempo é
     outra caminhada por outras ruas, e o placar entre as duas mediria acaso, não decisão. O que a
     preferência muda dá para ver trocando entre <i>equilibrada</i>, <i>mais sombra</i> e
@@ -773,6 +788,25 @@ function placar(esc) {
     <tr><td>${rot}</td><td class="n">${a}</td>
     <td class="n ${bom === false ? "ruim" : bom === true ? "nossa" : ""}">${b}</td></tr>`).join("");
   $("#nota-veredito").innerHTML = vereditoEmPalavras(esc);
+}
+
+/* Três situações diferentes, e a tela precisa saber distinguir as três: a volta
+ * alcançou o lugar pedido; não há lugar desses no raio do tempo; ou há, e
+ * alcançá-lo custaria mais tempo do que foi pedido. A terceira é a única
+ * acionável — diz para pedir mais minutos —, e era a que sumia. */
+const ROTULO_ALVO = {parque: "praça ou parque", turismo: "ponto turístico"};
+function miraEmPalavras(v, min) {
+  const alvos = v.mirouEm || [];
+  if (!alvos.length) return "";
+  const nome = emLista(alvos.map(a => ROTULO_ALVO[a] || a));
+  if (v.tocaAlvo)
+    return `<b>A volta passa por ${nome}:</b> ${v.tocaAlvo}
+      ${v.tocaAlvo > 1 ? "quarteirões colados" : "quarteirão colado"} num deles. `;
+  if (v.semAlvo)
+    return `<b>Não há ${nome} alcançável em ${min} min a partir daqui</b>, então a volta seguiu o
+      resto da sua preferência. `;
+  return `<b>Há ${nome} por perto, mas alcançá-lo custaria mais que os ${min} min pedidos.</b>
+    Peça mais tempo e a volta vai até lá. `;
 }
 
 const emLista = xs => xs.length < 2 ? (xs[0] || "")
@@ -863,7 +897,8 @@ function tracar() {
   const folgaMin = +$("#folga").value;
   if (modo === "volta") {
     const min = +$("#minutos").value;
-    const v = Motor.rotaCircular(o.no, min, {modo: prefAtual()});
+    const v = Motor.rotaCircular(o.no, min, {modo: prefAtual(),
+                                             semRepetir: $("#sem-repetir").checked});
     if (!v) return semRota();
     desenhar(null, v.caminho, [[o.no, "var(--mapa-nossa)", o.nome, o.alvo, o.recuo]]);
     $("#titulo-veredito").textContent = `Volta de ${min} minutos`;
@@ -895,7 +930,11 @@ function falar(caminho) {
   const passos = Motor.instrucoes(caminho) || [];
   if (!passos.length) { $("#caixa-fala").hidden = true; return; }
   $("#caixa-fala").hidden = false;
-  $("#fala").innerHTML = passos.slice(0, 10).map(frase).join("");
+  /* Todos os passos, não os dez primeiros. Uma volta de 47 min tem 57 passos, e
+   * mostrar 10 sem dizer que parou é dar 18% das instruções a quem está
+   * empurrando um carrinho e perguntando para onde virar. A lista rola. */
+  $("#fala").innerHTML = passos.map(frase).join("");
+  $("#conta-fala").textContent = `${passos.length} passos`;
 }
 
 /* O motor devolve o passo em campos; a fala é montada aqui, do jeito que uma
@@ -909,7 +948,8 @@ function frase(p) {
   const semRampa = p.rampa === false
     ? ` <span class="mono" style="color:var(--fora)">sem rebaixamento de guia</span>` : "";
   if (p.tipo === "siga")
-    return `<li>Siga pela ${rua} por ${num(p.metros)} m ·${largura}</li>`;
+    // sem o `largura` o separador ficava solto no fim da linha
+    return `<li>Siga pela ${rua} por ${num(p.metros)} m${largura ? " ·" + largura : ""}</li>`;
   if (p.tipo === "mudar_lado")
     return `<li>Troque para a calçada do outro lado da ${rua} ·${semRampa || " a travessia tem rampa"}</li>`;
   if (p.tipo === "cruzar")

@@ -287,10 +287,19 @@ const Motor = (() => {
   /* Volta que sai e volta no mesmo ponto, perto do tempo pedido.
    * Uma única busca de origem cobre TODAS as idas; só as voltas são por
    * candidato. É o que mantém o tempo de resposta interativo. */
+  /* Componentes que são LUGAR, e não propriedade da rua: dá para mirar numa
+   * praça, não dá para mirar em sombra — ela está ao longo do caminho, não no
+   * fim dele. É a diferença entre "passe por onde tem árvore" e "vá até lá". */
+  const ALVOS = ['parque', 'turismo'];
+
   function rotaCircular(origem, minutos, opts={}){
     const alvo = minutos * K.PASSO_M_POR_MIN;
     const modo = opts.modo || 'passeio';
     const nCand = opts.candidatos || 48;
+    /* Sem repetir trecho, a volta é um circuito de verdade. É o padrão: quem
+     * pede uma volta quer dar a volta. Antes isto era uma penalidade de 5× no
+     * custo, e 18 de 108 voltas medidas repetiam mesmo assim. */
+    const semRepetir = opts.semRepetir !== false;
     const inicios = estadosDoNo(origem);
 
     // distância caminhada pura, igual ao Python: se medisse com o custo de
@@ -308,7 +317,37 @@ const Motor = (() => {
 
     let semente = opts.semente || 1;
     const rnd = () => (semente = (semente*1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-    for(let i=candidatos.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [candidatos[i],candidatos[j]]=[candidatos[j],candidatos[i]]; }
+    const embaralhar = xs => {
+      for(let i=xs.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [xs[i],xs[j]]=[xs[j],xs[i]]; }
+      return xs;
+    };
+
+    /* MIRAR no alvo, e não só andar perto dele.
+     *
+     * O ponto de retorno era sorteado só por distância, embaralhado uniforme e
+     * cortado nos primeiros 48 — nada puxava a volta para onde as praças estão.
+     * O componente de praça é um gradiente de proximidade, então a volta colhia
+     * média alta (0,45 -> 0,69 ao pedir praça) sem nunca encostar numa: medido,
+     * quatro de cinco origens davam ZERO trechos colados numa praça.
+     *
+     * Agora, quando a preferência pede um LUGAR, os candidatos que ficam colados
+     * nele entram primeiro. Se não houver nenhum no raio do tempo pedido, a volta
+     * sai como antes e `semAlvo` diz isso — entregar uma volta qualquer e chamar
+     * de "praças" seria pior que admitir que não há praça alcançável. */
+    const pref = preferencias()[modo];
+    const mirados = pref ? ALVOS.filter(k => pref[k]) : [];
+    let semAlvo = false;
+    if(mirados.length){
+      const encosta = s => {
+        const a = D.arestas[s>>2];
+        return mirados.some(k => (a[IDX_COMPONENTE[k]] || 0) >= 0.999);
+      };
+      const noAlvo = embaralhar(candidatos.filter(encosta));
+      semAlvo = !noAlvo.length;
+      candidatos = noAlvo.concat(embaralhar(candidatos.filter(s => !encosta(s))));
+    } else {
+      embaralhar(candidatos);
+    }
     candidatos = candidatos.slice(0, nCand);
 
     let melhor = null;
@@ -317,7 +356,7 @@ const Motor = (() => {
       const ida = reconstruir(arvore.veio, volta);
       const usados = new Set();
       for(let i=0;i<ida.length-1;i++) if(andou(ida[i], ida[i+1])) usados.add(ida[i]>>2);
-      const r = dijkstraEvitando(volta, s => s === ida[0], modo, usados);
+      const r = dijkstraEvitando(volta, s => s === ida[0], modo, usados, semRepetir);
       if(!r) continue;
       const caminho = ida.concat(r.slice(1));
       const res = resumir(caminho);
@@ -326,10 +365,11 @@ const Motor = (() => {
        * Zerá-la fora do modo 'passeio' desligava o critério em vez de mudá-lo,
        * e a volta "com sombra" vinha com MENOS sombra que a comum. */
       const pref = preferencias()[modo];
-      let notaSoma=0, qSoma=0, andados=0; const distintos=new Set();
+      let notaSoma=0, qSoma=0, andados=0; const distintos=new Set(), noAlvo=new Set();
       for(let i=0;i<caminho.length-1;i++) if(andou(caminho[i],caminho[i+1])){
         const t=caminho[i]>>2, a=D.arestas[t], m=a[2];
         notaSoma += a[6]*m; andados++; distintos.add(t);
+        if(mirados.some(k => (a[IDX_COMPONENTE[k]]||0) >= 0.999)) noAlvo.add(t);
         let extra=0, soma=0;
         if(pref) for(const k in pref){ extra += pref[k]; soma += pref[k]*(a[IDX_COMPONENTE[k]]||0); }
         qSoma += ((1-extra)*a[6] + soma) * m; }
@@ -338,15 +378,33 @@ const Motor = (() => {
       const repetido = andados ? 1 - distintos.size/andados : 1;
       /* e a norma pesa na escolha, não só no caminho */
       const fora = res.distancia_m ? res.metros_ruins / res.distancia_m : 0;
-      const score = q - 0.7*Math.abs(res.distancia_m - alvo)/alvo
-                  - 0.8*repetido - 0.6*fora;
+      /* Encostar VALE, e o gradiente de proximidade não dava conta disso: com
+       * ele a volta colhia média alta sem nunca pôr o pé numa praça — quatro de
+       * cinco origens davam zero. Dois quarteirões colados no alvo saturam o
+       * prêmio: o pedido é "passe por uma praça", não "ande dentro do parque a
+       * caminhada inteira". */
+      /* E o prêmio só vale dentro do tempo pedido. Sem esta trava ele comprava
+       * 30% de caminhada a mais para alcançar uma praça — 39 min para 30
+       * pedidos. O tempo que a pessoa pediu é promessa; a praça é preferência. */
+      const desvioTempo = Math.abs(res.distancia_m - alvo) / alvo;
+      const encostou = mirados.length && desvioTempo <= 0.20
+                     ? Math.min(1, noAlvo.size / 2) : 0;
+      const score = q + 0.45*encostou - 0.7*desvioTempo - 0.8*repetido - 0.6*fora;
       if(!melhor || score > melhor.score)
-        melhor = {score, caminho, nota, repetido, alvo_m: alvo, ...res};
+        melhor = {score, caminho, nota, repetido, alvo_m: alvo, mirouEm: mirados,
+                  tocaAlvo: noAlvo.size, semAlvo, semRepetir, ...res};
     }
+    /* Sem repetir pode não haver volta: quarteirão sem saída, ou tempo curto
+     * demais para fechar o circuito. Aí vale mais entregar a volta que repete e
+     * dizer isso do que não entregar nada. */
+    if(!melhor && semRepetir)
+      return rotaCircular(origem, minutos, Object.assign({}, opts, {semRepetir: false}));
     return melhor;
   }
 
-  function dijkstraEvitando(inicio, ehAlvo, modo, evitar){
+  /* `duro` transforma "evitar" em "não existe": é a diferença entre uma volta
+   * que prefere não repetir e uma que não repete. */
+  function dijkstraEvitando(inicio, ehAlvo, modo, evitar, duro){
     const dist = new Float64Array(D.arestas.length*4).fill(Infinity);
     const veio = new Int32Array(D.arestas.length*4).fill(-1);
     const h = new Heap(); dist[inicio]=0; h.push(0, inicio);
@@ -355,8 +413,9 @@ const Motor = (() => {
       if(d > dist[s]) continue;
       if(ehAlvo(s)) return reconstruir(veio, s);
       for(const [s2, custo] of vizinhos(s, modo)){
-        const penal = (andou(s,s2) && evitar.has(s>>2)) ? 5.0 : 1.0;
-        const nd = d + custo*penal;
+        const repetindo = andou(s,s2) && evitar.has(s>>2);
+        if(repetindo && duro) continue;
+        const nd = d + custo*(repetindo ? 5.0 : 1.0);
         if(nd < dist[s2]){ dist[s2]=nd; veio[s2]=s; h.push(nd, s2); }
       }
     }
