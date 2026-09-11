@@ -409,7 +409,7 @@ footer b{color:var(--tinta2)}
 </footer>
 </div>
 
-<script src="motor.js?v=4"></script>
+<script src="motor.js?v=5"></script>
 <script src="dados.js?v=3"></script>
 <script>
 const D = window.__DADOS__;
@@ -843,16 +843,24 @@ function placar(esc) {
  * acionável — diz para pedir mais minutos —, e era a que sumia. */
 const ROTULO_ALVO = {parque: "praça ou parque", turismo: "ponto turístico"};
 function miraEmPalavras(v, min) {
+  /* Quando não houve laço possível, isso vem antes de qualquer outra coisa: a
+   * pessoa pediu uma volta e recebeu um vaivém, e tem de saber. */
+  const semLaco = v.lacoFraco
+    ? `<b>Aqui não deu para fechar uma volta de verdade em ${min} min:</b> as ruas em torno não
+       formam um circuito nesse raio, então o trajeto refaz parte do caminho. Pedir mais tempo
+       costuma resolver. ` : "";
   const alvos = v.mirouEm || [];
+  if (!alvos.length) return semLaco;
   if (!alvos.length) return "";
   const nome = emLista(alvos.map(a => ROTULO_ALVO[a] || a));
+  if (semLaco) return semLaco;
   if (v.tocaAlvo)
     return `<b>A volta passa por ${nome}:</b> ${v.tocaAlvo}
       ${v.tocaAlvo > 1 ? "quarteirões colados" : "quarteirão colado"} num deles. `;
   if (v.semAlvo)
     return `<b>Não há ${nome} alcançável em ${min} min a partir daqui</b>, então a volta seguiu o
       resto da sua preferência. `;
-  return `<b>Há ${nome} por perto, mas alcançá-lo custaria mais que os ${min} min pedidos.</b>
+  return `<b>Há ${nome} por perto, mas não deu para alcançar e fechar a volta em ${min} min.</b>
     Peça mais tempo e a volta vai até lá. `;
 }
 

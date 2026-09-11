@@ -340,6 +340,37 @@ const Motor = (() => {
    * praça, não dá para mirar em sombra — ela está ao longo do caminho, não no
    * fim dele. É a diferença entre "passe por onde tem árvore" e "vá até lá". */
   const ALVOS = ['parque', 'turismo'];
+  /* O piso do laço. As voltas de referência ficam entre 0,55 e 0,70; 0,20 é
+   * baixo o bastante para quase sempre haver candidata, e alto o bastante para
+   * excluir o vaivém, que dá perto de zero. */
+  const MIN_LACO = 0.20;
+
+  /* O quociente isoperimétrico do laço: 4πA/P². Vale 1 num círculo e 0 num
+   * vaivém puro, e é o que separa "dar a volta" de "ir e voltar".
+   *
+   * "Não repetir trecho" não bastava, e isso foi medido: cinco de quinze voltas
+   * fechavam área ZERO — saíam por uma rua e voltavam pela de trás, sem repetir
+   * um metro, e no mapa aquilo lê como ida e volta. As nossas ficavam entre 0,00
+   * e 0,23; as voltas de referência, entre 0,55 e 0,70. */
+  function formaDoLaco(caminho){
+    const k = Math.cos((D.bbox[1] + D.bbox[3]) / 2 * Math.PI / 180) * 111320;
+    let A = 0, P = 0, ax = null, ay = null, px = null, py = null;
+    for(let i=0;i<caminho.length-1;i++){
+      if(!andou(caminho[i], caminho[i+1])) continue;
+      for(const no of [noDoEstado(caminho[i]), noDoEstado(caminho[i+1])]){
+        const x = D.nos[no][0]*k, y = D.nos[no][1]*111320;
+        if(px === null){ ax = x; ay = y; px = x; py = y; continue; }
+        if(x === px && y === py) continue;
+        A += px*y - x*py;
+        P += Math.hypot(x-px, y-py);
+        px = x; py = y;
+      }
+    }
+    if(px === null) return 0;
+    A += px*ay - ax*py;              // fecha o polígono
+    P += Math.hypot(ax-px, ay-py);
+    return P ? 4*Math.PI*Math.abs(A)/2 / (P*P) : 0;
+  }
 
   function rotaCircular(origem, minutos, opts={}){
     const alvo = minutos * K.PASSO_M_POR_MIN;
@@ -399,8 +430,7 @@ const Motor = (() => {
     }
     candidatos = candidatos.slice(0, nCand);
 
-    let melhor = null;
-    const inicioSet = new Set(inicios);
+    let melhor = null, reserva = null;
     for(const volta of candidatos){
       const ida = reconstruir(arvore.veio, volta);
       const usados = new Set();
@@ -425,6 +455,11 @@ const Motor = (() => {
       const nota = notaSoma / res.distancia_m;
       const q = pref ? qSoma / res.distancia_m : 0;
       const repetido = andados ? 1 - distintos.size/andados : 1;
+      /* Com `semRepetir`, repetir é impossível e não caro — do mesmo jeito que
+       * escadaria. O `dijkstraEvitando` duro já garante isso na VOLTA, mas a ida
+       * vem da árvore de Dijkstra e pode andar os dois lados do mesmo trecho.
+       * Sem esta linha, o prêmio do laço escolhia justamente essas. */
+      if(semRepetir && repetido > 0.001) continue;
       /* e a norma pesa na escolha, não só no caminho */
       const fora = res.distancia_m ? res.metros_ruins / res.distancia_m : 0;
       /* Encostar VALE, e o gradiente de proximidade não dava conta disso: com
@@ -438,11 +473,31 @@ const Motor = (() => {
       const desvioTempo = Math.abs(res.distancia_m - alvo) / alvo;
       const encostou = mirados.length && desvioTempo <= 0.20
                      ? Math.min(1, noAlvo.size / 2) : 0;
-      const score = q + 0.45*encostou - 0.7*desvioTempo - 0.8*repetido - 0.6*fora;
-      if(!melhor || score > melhor.score)
-        melhor = {score, caminho, nota, repetido, alvo_m: alvo, mirouEm: mirados,
-                  tocaAlvo: noAlvo.size, semAlvo, semRepetir, ...res};
+      /* A forma do laço entra no critério, e com peso alto de propósito: sem
+       * ela, "não repetir trecho" produzia voltas de área zero, que é o que o
+       * usuário reclamou. Saturar em 0,55 — o piso das voltas de referência —
+       * porque acima disso o laço já cercou um quarteirão de verdade e o que
+       * importa volta a ser a qualidade da calçada. */
+      /* O prêmio do laço, como o da praça, só vale dentro do tempo pedido: sem a
+       * trava ele comprava 41% de caminhada a mais para fechar um laço bonito.
+       * E pesa menos que a mira, senão a volta que você pediu "com praças" vira
+       * um quarteirão redondo sem praça nenhuma. */
+      const Q = formaDoLaco(caminho);
+      const premioLaco = desvioTempo <= 0.20 ? 0.35 * Math.min(1, Q / 0.55) : 0;
+      const score = q + 0.45*encostou + premioLaco
+                  - 0.7*desvioTempo - 0.8*repetido - 0.6*fora;
+      const cand = {score, caminho, nota, repetido, alvo_m: alvo, mirouEm: mirados,
+                    tocaAlvo: noAlvo.size, semAlvo, semRepetir,
+                    laco: +Q.toFixed(3), ...res};
+      /* O laço é PISO, não prêmio: "dar uma volta" quer dizer cercar alguma
+       * coisa, do mesmo jeito que quer dizer não refazer o caminho. Tratá-lo
+       * como prêmio fazia a mira na praça atropelá-lo, e a volta "com praças"
+       * voltava a ser ida e volta. Quem não fecha laço só é considerado se
+       * nenhuma candidata fechar — e aí a ficha diz isso. */
+      if(Q >= MIN_LACO){ if(!melhor || score > melhor.score) melhor = cand; }
+      else if(!reserva || score > reserva.score) reserva = cand;
     }
+    if(!melhor && reserva) return Object.assign(reserva, {lacoFraco: true});
     /* Sem repetir pode não haver volta: quarteirão sem saída, ou tempo curto
      * demais para fechar o circuito. Aí vale mais entregar a volta que repete e
      * dizer isso do que não entregar nada. */
