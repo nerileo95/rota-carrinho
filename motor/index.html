@@ -477,7 +477,7 @@ table.provas td.fora{color:var(--tinta3)}
 </div>
 
 <script src="../motor.js?v=3"></script>
-<script src="../dados.js?v=2"></script>
+<script src="../dados.js?v=3"></script>
 <script>
 const D = window.__DADOS__;
 Motor.iniciar(D);
@@ -741,7 +741,8 @@ function desenharNoMapa(comum, nossa, pontos, sel) {
       .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
         + (livre === null ? "largura não cadastrada"
            : `faixa livre ${num(livre, 2)} m${fora ? ", abaixo de 1,20 m" : ""}`)
-        + `<br>nota de passeio ${num(a[6], 2)}`, {sticky: true}).addTo(pintado);
+        // a nota do lado em que se anda, não a da rua
+        + `<br>nota de passeio ${num(a[13 + t.lado] ?? a[6], 3)}`, {sticky: true}).addTo(pintado);
     for (const p of D.geo[t.t]) cabe(p);
   }
   if (nossa) for (const tv of travessiasDe(nossa)) {
@@ -958,7 +959,7 @@ function tabelaAB(esc, teto) {
       ${marca(pct(c.pct_ruim), "metros fora da norma")}
       ${marca(metros(c.pior_livre_m), "pior faixa livre")}
       ${marca(c.sem_rampa + " de " + c0.sem_rampa, "travessias sem rampa")}
-      ${marca(num(c.nota, 2), "nota de passeio")}
+      ${marca(num(c.nota, 3), "nota de passeio")}
       <td class="${venceu ? "melhor" : fora ? "fora" : ""}">${
         venceu ? "a escolhida" : fora ? "fora do orçamento" : "perdeu no placar"}</td></tr>`;
   };
@@ -1191,7 +1192,7 @@ $("#rodar").onclick = () => {
       ${marca(metros(reg.pior), g("pior faixa livre"))}
       ${marca(reg.semRampa + " de " + (reg.volta ? reg.travessias : reg.semRampaC),
               g("travessias sem rampa"))}
-      ${marca(num(reg.nota, 2), g("nota de passeio"))}
+      ${marca(num(reg.nota, 3), g("nota de passeio"))}
       <td>${reg.volta ? "—" : `${reg.dentro} de ${reg.cand}`}</td>
       <td class="${reg.volta ? "" : reg.perde.length ? "" : "melhor"}">${
         reg.volta ? `sombra ${num(reg.sombra, 2)} · praça ${num(reg.praca, 2)}`

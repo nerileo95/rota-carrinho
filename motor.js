@@ -37,6 +37,22 @@ const Motor = (() => {
 
   const noDoEstado = s => { const t=s>>2, p=(s>>1)&1; return D.arestas[t][p?1:0]; };
   const livreDoEstado = s => D.arestas[s>>2][3 + (s&1)];
+  /* A nota do LADO andado, não a da rua.
+   *
+   * A nota é composta em `motor.py`, e o componente de largura usava o melhor
+   * dos dois lados — o que responde "quão boa é esta rua", a pergunta do
+   * dashboard. O app pergunta outra coisa: "quão boa é esta caminhada". Com o
+   * máximo, atravessar para a calçada boa não mexia na nota, e a tabela mostrava
+   * empate onde o placar contava vitória.
+   *
+   * Quem entra no CUSTO de roteamento continua sendo a nota da rua (`a[6]`): o
+   * custo gera candidatas, o placar julga. Trocar os dois de uma vez mudaria as
+   * rotas e invalidaria a calibração da madrugada. */
+  const notaDoEstado = s => {
+    const a = D.arestas[s>>2];
+    const n = a[13 + (s&1)];
+    return n === undefined || n === null ? a[6] : n;
+  };
   const setorDe = s => D.setores[s>>2][((s>>1)&1)*2 + (s&1)];
   const temRampa = n => D._rampa.has(n);
   const guiaDe = n => D._rampa.has(n) ? "rampa" : D._guiaAlta.has(n) ? "guia_alta" : null;
@@ -226,7 +242,7 @@ const Motor = (() => {
       const a=caminho[i], b=caminho[i+1];
       if(andou(a,b)){
         const t = a>>2, m = D.arestas[t][2], livre = livreDoEstado(a);
-        dist += m; notaSoma += D.arestas[t][6] * m;
+        dist += m; notaSoma += notaDoEstado(a) * m;
         if(livre !== null){ if(livre < K.FAIXA_LIVRE_MIN_M) ruins += m; pior = Math.min(pior, livre); }
       } else if(setorDe(a) !== setorDe(b)){
         travessias++;
@@ -368,7 +384,7 @@ const Motor = (() => {
       let notaSoma=0, qSoma=0, andados=0; const distintos=new Set(), noAlvo=new Set();
       for(let i=0;i<caminho.length-1;i++) if(andou(caminho[i],caminho[i+1])){
         const t=caminho[i]>>2, a=D.arestas[t], m=a[2];
-        notaSoma += a[6]*m; andados++; distintos.add(t);
+        notaSoma += notaDoEstado(caminho[i])*m; andados++; distintos.add(t);
         if(mirados.some(k => (a[IDX_COMPONENTE[k]]||0) >= 0.999)) noAlvo.add(t);
         let extra=0, soma=0;
         if(pref) for(const k in pref){ extra += pref[k]; soma += pref[k]*(a[IDX_COMPONENTE[k]]||0); }
@@ -612,6 +628,7 @@ const Motor = (() => {
 
   return {iniciar, rotear, rotaCircular, resumir, instrucoes, definirReports, calibrar,
           escolherRota, temEscada, custoPasso, nomeDoModo, mediasDe, preferencias,
+          notaDoEstado,
           INDICADORES, CALIBRAGENS, FOLGA_MIN,
           estadosDoNo, andou, setorDe, noDoEstado, custoTrecho, TIPOS_REPORT,
           get dados(){ return D; }, get calibracao(){ return cal; }};
