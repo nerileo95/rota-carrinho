@@ -276,6 +276,39 @@ const Motor = (() => {
     return (cruz(marcha, deslocDe(a)) > 0) === (cruz(marcha, deslocDe(b)) > 0);
   }
 
+  /* Os trechos andados, cada um com o deslocamento FÍSICO da calçada em que se
+   * anda. É semântica do trajeto, não desenho — por isso mora aqui e não no
+   * mapa, e por isso a regressão consegue prendê-la.
+   *
+   * O rótulo E/D da aresta vale dentro do seu trecho e **não é comparável entre
+   * trechos** (ver `classificar_lados`, no motor.py). Medido: em 11% das emendas
+   * retas sem travessia dois trechos seguidos rotulam lados opostos — e o mapa,
+   * desenhando pelo rótulo, fazia a rota pular a rua sem ninguém ter
+   * atravessado. Eram esses os "desvios" em zigue-zague.
+   *
+   * Quem manda sobre continuidade é o SETOR: ele agrupa as calçadas da mesma
+   * esquina e foi construído e validado no Python. Mesmo setor, mesma calçada.
+   * Setor diferente, `mesmoLadoFisico` decide — a mesma função que escolhe entre
+   * "atravesse" e "troque para a calçada do outro lado" na fala. O resultado é
+   * que o mapa vira exatamente onde a fala manda virar. */
+  function ladosDoCaminho(caminho){
+    const out = [];
+    let anterior = null, desloc = null;
+    for(let i=0;i<caminho.length-1;i++){
+      const a = caminho[i];
+      if(!andou(a, caminho[i+1])) continue;
+      let v = deslocDe(a);
+      if(anterior !== null){
+        const mesmoLado = setorDe(anterior) === setorDe(a) || mesmoLadoFisico(anterior, a);
+        const juntos = v[0]*desloc[0] + v[1]*desloc[1] > 0;
+        if(mesmoLado !== juntos) v = [-v[0], -v[1]];
+      }
+      out.push({t: a>>2, lado: a&1, desloc: v, i});
+      anterior = caminho[i+1]; desloc = v;
+    }
+    return out;
+  }
+
   function instrucoes(caminho){
     const passos = []; let via = null;
     for(let i=0;i<caminho.length-1;i++){
@@ -628,7 +661,7 @@ const Motor = (() => {
 
   return {iniciar, rotear, rotaCircular, resumir, instrucoes, definirReports, calibrar,
           escolherRota, temEscada, custoPasso, nomeDoModo, mediasDe, preferencias,
-          notaDoEstado,
+          notaDoEstado, mesmoLadoFisico, deslocDe, ladosDoCaminho,
           INDICADORES, CALIBRAGENS, FOLGA_MIN,
           estadosDoNo, andou, setorDe, noDoEstado, custoTrecho, TIPOS_REPORT,
           get dados(){ return D; }, get calibracao(){ return cal; }};

@@ -409,7 +409,7 @@ footer b{color:var(--tinta2)}
 </footer>
 </div>
 
-<script src="motor.js?v=3"></script>
+<script src="motor.js?v=4"></script>
 <script src="dados.js?v=3"></script>
 <script>
 const D = window.__DADOS__;
@@ -532,14 +532,12 @@ const projetor = (W, H, pad, caixa) => {
 };
 const linha = (coords, f) =>
   coords.map((p, i) => (i ? "L" : "M") + f(p[0], p[1]).map(v => v.toFixed(1)).join(" ")).join("");
-const trechosDe = caminho => {
-  const out = [];
-  for (let i = 0; i < caminho.length - 1; i++) {
-    const a = caminho[i];
-    if (Motor.andou(a, caminho[i + 1])) out.push({t: a >> 2, lado: a & 1});
-  }
-  return out;
-};
+/* O lado em que a rota anda é semântica do trajeto, e mora no motor: o rótulo
+ * E/D da aresta não é comparável entre trechos, e desenhar por ele fazia o traço
+ * pular a rua sem ninguém ter atravessado. `ladosDoCaminho` resolve isso com o
+ * setor, e a regressão prende o resultado: o mapa vira onde a fala manda virar. */
+const trechosDe = caminho => Motor.ladosDoCaminho(caminho);
+
 const travessiasDe = caminho => {
   const out = [];
   for (let i = 0; i < caminho.length - 1; i++) {
@@ -627,19 +625,11 @@ const paraLatLng = coords => coords.map(p => [p[1], p[0]]);
  * deslocamento é métrico, então encolhe ao afastar o zoom, que é o certo: a
  * 5 m de distância real não existe meia tela de diferença. */
 const DESLOC_M = 5;
-function noLado(geo, lado) {
-  if (geo.length < 2) return geo;
+function noLado(geo, desloc) {
+  if (geo.length < 2 || !desloc) return geo;
   const k = Math.cos(geo[0][1] * Math.PI / 180);
-  const sinal = lado ? 1 : -1;
-  return geo.map((p, i) => {
-    const a = geo[Math.max(0, i - 1)], b = geo[Math.min(geo.length - 1, i + 1)];
-    let dx = (b[0] - a[0]) * k, dy = b[1] - a[1];
-    const n = Math.hypot(dx, dy);
-    if (!n) return p;
-    dx /= n; dy /= n;
-    return [p[0] + sinal * dy * DESLOC_M / (111320 * k),
-            p[1] - sinal * dx * DESLOC_M / 111320];
-  });
+  const ox = desloc[0] * DESLOC_M / (111320 * k), oy = desloc[1] * DESLOC_M / 111320;
+  return geo.map(p => [p[0] + ox, p[1] + oy]);
 }
 
 function desenharNoMapa(comum, nossa, pontos, sel) {
@@ -663,14 +653,14 @@ function desenharNoMapa(comum, nossa, pontos, sel) {
       .addTo(pintado);
 
   if (comum) for (const t of trechosDe(comum)) {
-    L.polyline(paraLatLng(noLado(D.geo[t.t], t.lado)), {color: cor("--mapa-curta"), weight: 5,
+    L.polyline(paraLatLng(noLado(D.geo[t.t], t.desloc)), {color: cor("--mapa-curta"), weight: 5,
       opacity: .95, dashArray: "3 8", interactive: false}).addTo(pintado);
     for (const p of D.geo[t.t]) cabe(p);
   }
   if (nossa) for (const t of trechosDe(nossa)) {
     const a = D.arestas[t.t], livre = a[3 + t.lado];
     const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-    L.polyline(paraLatLng(noLado(D.geo[t.t], t.lado)),
+    L.polyline(paraLatLng(noLado(D.geo[t.t], t.desloc)),
       {color: fora ? cor("--mapa-alerta") : cor("--mapa-nossa"), weight: 6.5})
       .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
         + (livre === null ? "largura não cadastrada"
@@ -753,7 +743,7 @@ function desenhar(comum, nossa, pontos, sel = "#mapa") {
   if (comum) {
     s += `<g fill="none" stroke="var(--mapa-curta)" stroke-width="5.5" stroke-linecap="round"
            stroke-linejoin="round" opacity=".95" stroke-dasharray="3 8">`;
-    for (const t of trechosDe(comum)) s += `<path d="${linha(noLado(D.geo[t.t], t.lado), f)}"/>`;
+    for (const t of trechosDe(comum)) s += `<path d="${linha(noLado(D.geo[t.t], t.desloc), f)}"/>`;
     s += `</g>`;
   }
   if (nossa) {
@@ -761,7 +751,7 @@ function desenhar(comum, nossa, pontos, sel = "#mapa") {
     for (const t of trechosDe(nossa)) {
       const livre = D.arestas[t.t][3 + t.lado];
       const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-      s += `<path d="${linha(noLado(D.geo[t.t], t.lado), f)}" stroke="${fora ? "var(--mapa-alerta)" : "var(--mapa-nossa)"}"/>`;
+      s += `<path d="${linha(noLado(D.geo[t.t], t.desloc), f)}" stroke="${fora ? "var(--mapa-alerta)" : "var(--mapa-nossa)"}"/>`;
     }
     s += `</g>`;
     for (const tv of travessiasDe(nossa)) {
