@@ -30,6 +30,7 @@
   --mapa-predio:#232E3D; --mapa-predio-borda:#2B3849;
   --mapa-agua:#141C26;
   --mapa-via:#3A485E; --mapa-tinta:#93A3BD;
+  --mapa-calcada:#33435A;   /* a calçada cadastrada no GeoSampa, sob a rota */
   --mapa-verde:#24544B; --mapa-verde-borda:#3C8677;   /* praça e parque */
   --mapa-turismo:#E8B44A;                             /* ponto turístico */
   --mapa-curta:#C3D0E6;     /* a rota mais curta: clara sobre o azul */
@@ -336,6 +337,7 @@ footer b{color:var(--tinta2)}
       <span><i style="background:var(--mapa-alerta)"></i>trecho abaixo de 1,20 m</span>
       <span><i style="background:var(--tinta3);height:2px"></i>os últimos metros até o cruzamento</span>
       <span><i style="background:var(--mapa-verde);height:10px;border-radius:3px;border:1px solid var(--mapa-verde-borda)"></i>praça ou parque</span>
+      <span><i style="background:var(--mapa-calcada);height:8px;border-radius:2px"></i>calçada cadastrada</span>
       <span><i style="background:var(--mapa-via);height:2px"></i>ruas do bairro</span>
       <span><i style="background:var(--mapa-predio);height:9px;border-radius:2px"></i>prédio</span>
       <span><i style="background:var(--mapa-turismo);height:10px;width:10px;border-radius:50%"></i>ponto turístico</span>
@@ -408,7 +410,7 @@ footer b{color:var(--tinta2)}
 </div>
 
 <script src="motor.js?v=3"></script>
-<script src="dados.js?v=1"></script>
+<script src="dados.js?v=2"></script>
 <script>
 const D = window.__DADOS__;
 Motor.iniciar(D);
@@ -487,6 +489,7 @@ function decodificar(flat) {
 }
 const PREDIOS = decodificar(D.predios || []);
 const AGUA = decodificar(D.agua || []);
+const CALCADAS = decodificar(D.calcadas || []);
 /* Traço por hierarquia da via — avenida grossa, rua de bairro fina, caminho de
  * pedestre mais fino ainda. É o que faz a malha ler como mapa e não como teia. */
 const TRACO = [2.6, 1.8, 1.15, 0.8, 0.6];
@@ -591,10 +594,53 @@ function abrirMapa(sel) {
    * fora dela é devolvido. Fora daqui não há calçada cadastrada, e um mapa que
    * deixa chegar ao Rio promete o que não tem. */
   mapa.setMinZoom(mapa.getZoom());
+
+  /* As 8.659 calçadas do GeoSampa, em canvas e não em SVG: como camada de
+   * vetores o navegador criaria 8.659 nós de DOM e o mapa engasgaria a cada
+   * arrasto. Elas são fixas, então entram uma vez, na criação do quadro, e não
+   * a cada rota traçada. */
+  if (CALCADAS.length) {
+    /* Painel próprio entre o tile (200) e os vetores da rota (400): é assim que
+     * o Leaflet ordena camadas. `bringToBack()` não serve — é método de
+     * `FeatureGroup`, não de `LayerGroup`, e a exceção deixava o contêiner do
+     * mapa inicializado sem o quadro registrado, quebrando o traçado seguinte
+     * com "Map container is already initialized". */
+    mapa.createPane("calcadas").style.zIndex = 350;
+    const tela = L.canvas({pane: "calcadas", padding: 0.3});
+    for (const g of CALCADAS)
+      L.polygon(paraLatLng(g), {renderer: tela, pane: "calcadas", stroke: false,
+        fillColor: cor("--mapa-calcada"), fillOpacity: .55, interactive: false}).addTo(mapa);
+  }
   return mapa;
 }
 
 const paraLatLng = coords => coords.map(p => [p[1], p[0]]);
+
+/* A rota anda numa CALÇADA, não no eixo da via — e desenhá-la no eixo apagava a
+ * diferença que mais importa. Medido nos 45 pares do app: 35% dos trechos que a
+ * nossa rota anda são o mesmo quarteirão que a rota comum usa, e em 68 deles
+ * estamos na calçada OPOSTA. No eixo, os dois traços ficam um em cima do outro
+ * e a troca de lado — que é metade do que o motor faz — some.
+ *
+ * O rótulo E/D é relativo à direção ARMAZENADA do trecho (`classificar_lados`,
+ * em motor.py): E é a esquerda de quem anda de coords[0] para coords[-1]. O
+ * deslocamento é métrico, então encolhe ao afastar o zoom, que é o certo: a
+ * 5 m de distância real não existe meia tela de diferença. */
+const DESLOC_M = 5;
+function noLado(geo, lado) {
+  if (geo.length < 2) return geo;
+  const k = Math.cos(geo[0][1] * Math.PI / 180);
+  const sinal = lado ? 1 : -1;
+  return geo.map((p, i) => {
+    const a = geo[Math.max(0, i - 1)], b = geo[Math.min(geo.length - 1, i + 1)];
+    let dx = (b[0] - a[0]) * k, dy = b[1] - a[1];
+    const n = Math.hypot(dx, dy);
+    if (!n) return p;
+    dx /= n; dy /= n;
+    return [p[0] + sinal * dy * DESLOC_M / (111320 * k),
+            p[1] - sinal * dx * DESLOC_M / 111320];
+  });
+}
 
 function desenharNoMapa(comum, nossa, pontos, sel) {
   if (!MAPAS.has(sel)) MAPAS.set(sel, {mapa: abrirMapa(sel), pintado: null});
@@ -617,14 +663,15 @@ function desenharNoMapa(comum, nossa, pontos, sel) {
       .addTo(pintado);
 
   if (comum) for (const t of trechosDe(comum)) {
-    L.polyline(paraLatLng(D.geo[t.t]), {color: cor("--mapa-curta"), weight: 5, opacity: .95,
-      dashArray: "3 8", interactive: false}).addTo(pintado);
+    L.polyline(paraLatLng(noLado(D.geo[t.t], t.lado)), {color: cor("--mapa-curta"), weight: 5,
+      opacity: .95, dashArray: "3 8", interactive: false}).addTo(pintado);
     for (const p of D.geo[t.t]) cabe(p);
   }
   if (nossa) for (const t of trechosDe(nossa)) {
     const a = D.arestas[t.t], livre = a[3 + t.lado];
     const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-    L.polyline(paraLatLng(D.geo[t.t]), {color: fora ? cor("--mapa-alerta") : cor("--mapa-nossa"), weight: 6.5})
+    L.polyline(paraLatLng(noLado(D.geo[t.t], t.lado)),
+      {color: fora ? cor("--mapa-alerta") : cor("--mapa-nossa"), weight: 6.5})
       .bindTooltip(`<b>${D.nomes[a[7]]}</b><br>calçada ${t.lado ? "direita" : "esquerda"} · ${num(a[2])} m<br>`
         + (livre === null ? "largura não cadastrada"
            : `faixa livre ${num(livre, 2)} m${fora ? ", abaixo de 1,20 m" : ""}`)
@@ -683,6 +730,11 @@ function desenhar(comum, nossa, pontos, sel = "#mapa") {
     for (const g of cabemPredios) s += `<path d="${linha(g, f)}Z"/>`;
     s += `</g>`;
   }
+  /* A calçada entra DEPOIS dos prédios: ela é chão, e o prédio não passa por
+   * cima do chão. E antes das vias, que são linha fina e não escondem nada. */
+  let calcada = "";
+  for (const g of CALCADAS) if (naMoldura(g, caixa)) calcada += `<path d="${linha(g, f)}Z"/>`;
+  if (calcada) s += `<g fill="var(--mapa-calcada)" stroke="none">${calcada}</g>`;
   for (const pt of (D.turismo || [])) {
     if (pt.g[0] < caixa[0] || pt.g[0] > caixa[2] || pt.g[1] < caixa[1] || pt.g[1] > caixa[3]) continue;
     const [x, y] = f(pt.g[0], pt.g[1]);
@@ -700,7 +752,7 @@ function desenhar(comum, nossa, pontos, sel = "#mapa") {
   if (comum) {
     s += `<g fill="none" stroke="var(--mapa-curta)" stroke-width="5.5" stroke-linecap="round"
            stroke-linejoin="round" opacity=".95" stroke-dasharray="3 8">`;
-    for (const t of trechosDe(comum)) s += `<path d="${linha(D.geo[t.t], f)}"/>`;
+    for (const t of trechosDe(comum)) s += `<path d="${linha(noLado(D.geo[t.t], t.lado), f)}"/>`;
     s += `</g>`;
   }
   if (nossa) {
@@ -708,7 +760,7 @@ function desenhar(comum, nossa, pontos, sel = "#mapa") {
     for (const t of trechosDe(nossa)) {
       const livre = D.arestas[t.t][3 + t.lado];
       const fora = livre !== null && livre < K.FAIXA_LIVRE_MIN_M;
-      s += `<path d="${linha(D.geo[t.t], f)}" stroke="${fora ? "var(--mapa-alerta)" : "var(--mapa-nossa)"}"/>`;
+      s += `<path d="${linha(noLado(D.geo[t.t], t.lado), f)}" stroke="${fora ? "var(--mapa-alerta)" : "var(--mapa-nossa)"}"/>`;
     }
     s += `</g>`;
     for (const tv of travessiasDe(nossa)) {
