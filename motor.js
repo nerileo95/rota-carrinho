@@ -383,28 +383,40 @@ const Motor = (() => {
    * indicador e o app diz de qual. */
   const FOLGA_MIN = 5.0;    // minutos que a pessoa aceita andar a mais
 
-  /* As seis leituras que a varredura escolheu, e não seis palpites. O conjunto
-   * foi montado por seleção gulosa sobre a tabela de indicadores: cada leitura
-   * entrou porque acrescentava trajetos que as anteriores não ganhavam. A
-   * sétima não pagava mais o seu Dijkstra. */
-  /* As seis leituras que a varredura escolheu, e não seis palpites. O conjunto
-   * saiu de 3179 calibrações medidas contra 205 trajetos, por
-   * seleção gulosa sobre a tabela de indicadores: cada leitura entrou porque
-   * acrescentava trajetos que as anteriores não ganhavam. A sétima não pagava
-   * mais o seu Dijkstra. */
+  /* As seis leituras que a varredura escolheu, e não seis palpites.
+   *
+   * Saíram de 2.659 calibrações medidas na madrugada de 11/09/2026 contra 501
+   * trajetos — e, desta vez, medidas do jeito que o app roda: os DOIS pesos e a
+   * mesma régua de produção. A varredura anterior media um peso só e uma régua
+   * mais fraca, e por isso escolhia sem enxergar 5% das rotas que o app entrega.
+   *
+   * A seleção é gulosa por COBERTURA: entra a leitura que ganha trajetos que as
+   * anteriores não ganhavam, com o vaivém como desempate. E foi validada fora da
+   * amostra — escolhida sobre 400 trajetos, medida em 100 que nem a busca nem a
+   * seleção enxergaram:
+   *
+   *     ganha em algum indicador     84 de 100  ->  88 de 100
+   *     ganha sem perder em nada     60         ->  70
+   *     a mais curta vence            7         ->   6
+   *     metros andados de lado    2.114 m       ->  1.647 m
+   *
+   * pelo mesmo tempo a mais (+1,59 -> +1,62 min mediano). As seis discordam de
+   * verdade: `semRampa` vai de 1,7 a 7,6 e `guiaAlta` de 2,5 a 19,5. O conjunto
+   * anterior era seis vizinhos do mesmo ponto, porque o refino da busca gastava
+   * o tempo polindo um pico em vez de procurar leitura nova. */
   const CALIBRAGENS = [
-    {rotulo: "guia rebaixada acima de tudo",
-     cal: {multLargura: 6.64, multDeclive: 1, multIncerteza: 1.012, travessia: 12.449, semRampa: 7.205, guiaAlta: 16.25, multPiso: 1.314, multSemCalcada: 1.114, mSemaforo: 0.568, mFaixa: 0.904, barreiraM: 1.941, qA: 0.666, qB: 1.533}},
-    {rotulo: "travessia protegida",
-     cal: {multLargura: 4.462, multDeclive: 2.572, multIncerteza: 1.083, travessia: 15.114, semRampa: 6.044, guiaAlta: 6.602, multPiso: 1.094, multSemCalcada: 4.361, mSemaforo: 0.446, mFaixa: 0.563, barreiraM: 11.161, qA: 0.65, qB: 1.259}},
-    {rotulo: "terreno e piso",
-     cal: {multLargura: 1.634, multDeclive: 3.834, multIncerteza: 1.018, travessia: 17.821, semRampa: 7.193, guiaAlta: 8.39, multPiso: 2.066, multSemCalcada: 2.046, mSemaforo: 0.803, mFaixa: 0.938, barreiraM: 6.798, qA: 0.424, qB: 1.265}},
-    {rotulo: "menos travessia",
-     cal: {multLargura: 10.679, multDeclive: 2.454, multIncerteza: 2.253, travessia: 49.217, semRampa: 7.849, guiaAlta: 4.738, multPiso: 1.277, multSemCalcada: 2.649, mSemaforo: 0.902, mFaixa: 0.892, barreiraM: 26.015, qA: 0.493, qB: 0.592}},
-    {rotulo: "evita degrau",
-     cal: {multLargura: 5.241, multDeclive: 1.289, multIncerteza: 1.06, travessia: 10.64, semRampa: 10.635, guiaAlta: 4.1, multPiso: 2.146, multSemCalcada: 2.796, mSemaforo: 0.851, mFaixa: 0.978, barreiraM: 13.933, qA: 0.514, qB: 0.787}},
-    {rotulo: "desvia de barreira",
-     cal: {multLargura: 5.299, multDeclive: 4.256, multIncerteza: 1.045, travessia: 26.711, semRampa: 4.534, guiaAlta: 8.405, multPiso: 1.232, multSemCalcada: 1.001, mSemaforo: 0.949, mFaixa: 0.724, barreiraM: 47.809, qA: 0.411, qB: 1.347}},
+    {rotulo: "calçada larga, nota alta",
+     cal: {multLargura: 4.172, multDeclive: 2.045, multIncerteza: 1, travessia: 13.322, semRampa: 4.349, guiaAlta: 6.695, multPiso: 1.453, multSemCalcada: 2.929, mSemaforo: 0.644, mFaixa: 0.587, barreiraM: 7.337, qA: 0.341, qB: 1.415}},
+    {rotulo: "evita travessia e barreira",
+     cal: {multLargura: 2.536, multDeclive: 1.937, multIncerteza: 1.725, travessia: 37.637, semRampa: 7.632, guiaAlta: 12.036, multPiso: 2.223, multSemCalcada: 1.693, mSemaforo: 0.964, mFaixa: 0.949, barreiraM: 41.75, qA: 0.322, qB: 0.489}},
+    {rotulo: "foge de guia alta",
+     cal: {multLargura: 1.924, multDeclive: 2.981, multIncerteza: 1.059, travessia: 15.525, semRampa: 1.726, guiaAlta: 19.463, multPiso: 2.005, multSemCalcada: 4.863, mSemaforo: 0.49, mFaixa: 0.617, barreiraM: 2.19, qA: 0.497, qB: 0.996}},
+    {rotulo: "terreno e barreira",
+     cal: {multLargura: 2.239, multDeclive: 3.061, multIncerteza: 1.383, travessia: 15.708, semRampa: 1.95, guiaAlta: 3.292, multPiso: 1.662, multSemCalcada: 2.692, mSemaforo: 0.547, mFaixa: 0.842, barreiraM: 20.913, qA: 0.69, qB: 0.585}},
+    {rotulo: "largura e ladeira acima de tudo",
+     cal: {multLargura: 11.976, multDeclive: 4.712, multIncerteza: 1.028, travessia: 10.471, semRampa: 4.942, guiaAlta: 12.525, multPiso: 1.252, multSemCalcada: 1.762, mSemaforo: 0.962, mFaixa: 0.676, barreiraM: 33.831, qA: 0.2, qB: 0.955}},
+    {rotulo: "evita travessia e piso ruim",
+     cal: {multLargura: 2.451, multDeclive: 3.412, multIncerteza: 1.672, travessia: 36.447, semRampa: 6.771, guiaAlta: 2.516, multPiso: 2.812, multSemCalcada: 2.577, mSemaforo: 0.403, mFaixa: 0.727, barreiraM: 27.401, qA: 0.231, qB: 1.011}},
   ];
 
   /* Os quatro indicadores não valem o mesmo. Um degrau na travessia é o que
